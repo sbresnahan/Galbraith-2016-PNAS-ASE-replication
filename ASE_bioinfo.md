@@ -5,21 +5,25 @@ https://www.pnas.org/content/113/4/1020
 ## Overview of pipeline
 - [Requirements](#requirements)
 - [Process F0 DNA-seq libraries](#process-f0-dna-seq-libraries)
-  * [Sample metadata](#sample-metadata)
-  * [Retrieve F0 DNA-seq libraries](#retrieve-f0-dna-seq-libraries)
-  * [Trim adapters from F0 DNA-seq libraries](#trim-adapters-from-f0-dna-seq-libraries)
-  * [Generate BWA alignment index for the Amel_HAv3.1 reference genome](#generate-bwa-alignment-index-for-the-amel-hav31-reference-genome)
-  * [Align F0 DNA-seq libraries to Amel_HAv3.1](#align-f0-dna-seq-libraries-to-amel-hav31)
-  * [Call F0 variants on Amel_HAv3.1](#call-f0-variants-on-amel-hav31)
-  * [Generate F0 reference genomes](#generate-f0-reference-genomes)
-  * [Create STAR indices for each F0 genome](#create-star-indices-for-each-f0-genome)
+  * Sample metadata
+  * Define directory variables
+  * Retrieve F0 DNA-seq libraries
+  * Trim adapters from F0 DNA-seq libraries
+  * Generate BWA alignment index for the Amel_HAv3.1 reference genome
+  * Align F0 DNA-seq libraries to Amel_HAv3.1
+  * Call F0 variants on Amel_HAv3.1
+  * Generate F0 reference genomes
+  * Create STAR indices for each F0 genome
 - [Process F1 RNA-seq libraries](#process-f1-rna-seq-libraries)
-  * [Sample metadata](#sample-metadata-1)
-  * [Retrieve F1 RNA-seq libraries](#retrieve-f1-rna-seq-libraries)
-  * [Trim adapters from F1 RNA-seq libraries](#trim-adapters-from-f1-rna-seq-libraries)
-  * [Align F1 RNA-seq libraries to F0 genomes](#align-f1-rna-seq-libraries-to-f0-genomes)
-- [Filter SNPs for analysis](#filter-snps-for-analysis)
-  * [Compute strand-wise read coverage at each SNP](#compute-strand-wise-read-coverage-at-each-snp)
+  * Sample metadata
+  * Retrieve F1 RNA-seq libraries
+  * Trim adapters from F1 RNA-seq libraries
+  * Align F1 RNA-seq libraries to F0 genomes
+- [Count F1 reads over F0 SNPs](#count-f1-reads-over-f0-snps)
+  * Define directory variables
+  * Filter SNPs for analysis
+  * Generate BED file of each SNP:gene
+  * Compute strand-wise read coverage at each SNP:gene
 
 
 # Requirements
@@ -77,13 +81,6 @@ conda install -c bioconda -n bedtools bedtools
 
 # Process F0 DNA-seq libraries
 
-### Reciprocal cross colonies
-
-| Block | Cross 1 | Cross 2 |
-| ----- | ------- | ------- |
-|   A   |   875   |   888   |
-|   B   |   882   |   894   |
-
 ### Sample metadata
 
 |    SRA     | Cross | Parent | Lineage |
@@ -97,12 +94,24 @@ conda install -c bioconda -n bedtools bedtools
 | SRR3037356 |  894  |    Q   |   AHB   |
 | SRR3037357 |  894  |    D   |   EHB   |
 
-## Retrieve F0 DNA-seq libraries
+## Define directory variables
 
 ```
 DIR_NCBI="/storage/home/stb5321/.ncbi"
 DIR_SRA="/storage/home/stb5321/scratch/galbraith/raw"
+DIR_TRIM="/storage/home/stb5321/scratch/galbraith/trimmed"
+DIR_INDEX="/storage/home/stb5321/scratch/galbraith/index"
+DIR_ALIGN="/storage/home/stb5321/scratch/galbraith/aligned"
+DIR_VARIANTS="/storage/home/stb5321/scratch/galbraith/variants"
+DIR_ARG="/storage/home/stb5321/scratch/galbraith/parent_genomes"
+INDEX_GTF="/storage/home/stb5321/scratch/galbraith/index/Amel_HAv3.1.gtf"
+DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_snps"
+DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
+```
 
+## Retrieve F0 DNA-seq libraries
+
+```
 conda activate sra-tools
 
 cd ${DIR_SRA}
@@ -123,8 +132,6 @@ conda deactivate
 ## Trim adapters from F0 DNA-seq libraries
 
 ```
-DIR_TRIM="/storage/home/stb5321/scratch/galbraith/trimmed"
-
 conda activate fastp
 
 for i in "${SRA[@]}"
@@ -139,7 +146,6 @@ conda deactivate
 ## Generate BWA alignment index for the Amel_HAv3.1 reference genome
 
 ```
-DIR_INDEX="/storage/home/stb5321/scratch/galbraith/index"
 cd ${DIR_INDEX}
 
 wget -O Amel_HAv3.1.fna.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.fna.gz
@@ -160,8 +166,10 @@ conda deactivate
 
 ## Align F0 DNA-seq libraries to Amel_HAv3.1
 
+1) Align [`bwa mem`].
+2) Convert SAM to sorted BAM [`samtools`].
+
 ```
-DIR_ALIGN="/storage/home/stb5321/scratch/galbraith/aligned"
 cd ${DIR_TRIM}
 
 conda activate bwa
@@ -187,9 +195,9 @@ conda deactivate
 
 ## Call F0 variants on Amel_HAv3.1
 
-```
-DIR_VARIANTS="/storage/home/stb5321/scratch/galbraith/variants"
+Using freebayes to account for differences in ploidy between `DIPLOID` and `HAPLOID` libraries.
 
+```
 DIPLOID=("SRR3037350" "SRR3037352" "SRR3037354" "SRR3037356")
 HAPLOID=("SRR3037351" "SRR3037353" "SRR3037355" "SRR3037357")
 
@@ -220,10 +228,12 @@ conda deactivate
 
 ## Generate F0 reference genomes
 
+1) Remove heterozygous variants [`bcftools filter`] from, and keep SNPs [`bcftools filter`] in, VCFs.  
+2) Compress resultant VCFs and index [`bgzip`, `tabix`].  
+3) Integrate homozygous SNPs into Amel_HAv3.1 for each F0 library, separately [`bcftools consensus`].
+
 ```
 conda activate bcftools
-
-DIR_ARG="/storage/home/stb5321/scratch/galbraith/parent_genomes"
 
 cd ${DIR_VARIANTS}
 
@@ -242,8 +252,6 @@ conda deactivate
 ## Create STAR indices for each F0 genome
 
 ```
-INDEX_GTF="/storage/home/stb5321/scratch/galbraith/index/Amel_HAv3.1.gtf"
-
 cd ${DIR_ARG}
 
 conda activate star
@@ -264,13 +272,6 @@ conda deactivate
 ```
 
 # Process F1 RNA-seq libraries
-
-### Reciprocal cross colonies
-
-| Block | Cross 1 | Cross 2 |
-| ----- | ------- | ------- |
-|   A   |   875   |   888   |
-|   B   |   882   |   894   |
 
 ### Sample metadata
 
@@ -340,6 +341,8 @@ conda deactivate
 ```
 
 ## Align F1 RNA-seq libraries to F0 genomes
+
+Align [`STAR`] F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) to respective F0 genomes, allowing for 0 mismatches and output coordinate-sorted BAM.
 
 ```
 cd ${DIR_TRIM}
@@ -449,7 +452,27 @@ done
 conda deactivate
 ```
 
-# Filter SNPs for analysis
+# Count F1 reads over F0 SNPs
+
+### Reciprocal cross colonies
+
+| Block | Cross 1 | Cross 2 |
+| ----- | ------- | ------- |
+|   A   |   875   |   888   |
+|   B   |   882   |   894   |
+
+## Define directory variables
+
+```
+DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_snps"
+DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
+```
+
+## Filter SNPs for analysis
+
+### Remove concordant SNPs between parents
+
+Find intersect between homozygous SNPs in F0 parents and report those that do not overlap [`bedtools intersect`].
 
 ```
 cd ${DIR_VARIANTS}
@@ -484,34 +507,48 @@ bedtools intersect -header -v -a SRR3037357_typefilter.vcf.gz \
 
 
 conda deactivate
+```
 
+1) Remove lines beginning with "#" from each VCF [`grep`].  
+2) Merge discordant SNPs to one VCF per cross [`cat`].  
+3) Compress VCFs [`bgzip`].
+
+```
 conda activate bcftools
-
 
 grep -v '^#' SRR3037350_outer.vcf | cat SRR3037351_outer.vcf - > 875.vcf
 bgzip -c 875.vcf > 875.vcf.gz
-tabix -p vcf 875.vcf.gz
 
 grep -v '^#' SRR3037352_outer.vcf | cat SRR3037353_outer.vcf - > 888.vcf
 bgzip -c 888.vcf > 888.vcf.gz
-tabix -p vcf 888.vcf.gz
 
 grep -v '^#' SRR3037354_outer.vcf | cat SRR3037355_outer.vcf - > 882.vcf
 bgzip -c 882.vcf > 882.vcf.gz
-tabix -p vcf 882.vcf.gz
 
 grep -v '^#' SRR3037356_outer.vcf | cat SRR3037357_outer.vcf - > 894.vcf
 bgzip -c 894.vcf > 894.vcf.gz
-tabix -p vcf 894.vcf.gz
-
 
 conda deactivate
+```
 
+### Remove SNPs that are discordant between crosses within blocks but concordant between blocks (consensus SNPs)
+
+Find intersect between homozygous SNPs between crosses for each block and report those that do not overlap [`bedtools intersect`].
+
+```
 conda activate bedtools
 
 bedtools intersect -header -u -a 875.vcf.gz -b 888.vcf.gz > 875_888_aSet.vcf
 bedtools intersect -header -u -a 882.vcf.gz -b 894.vcf.gz > 882_894_aSet.vcf
+```
 
+1) Remove lines beginning with "#" from each VCF [`grep`].  
+2) Keep only columns 1 (chromosome) and 2 (start coordinate of SNP), duplicate column 2 as column 3 (stop coordinate of SNP) [`awk`].  
+3) Add column 4 (name) as sequential list of numbers [`awk`].  
+4) Add "snp_" to beginning of each line at column 4 [`awk`].  
+5) Find SNPs shared between blocks and report those that overlap [`bedtools intersect`].
+
+```
 grep -v '^#' 875_888_aSet.vcf | awk -v OFS="\t" '{print $1, $2, $2}' \
  | awk -v OFS="\t" '$4=(FNR FS $4)' \
  | awk -v OFS="\t" '{print $1, $2, $3, "snp_"$4}' > 875_888_aSet.bed
@@ -521,25 +558,67 @@ grep -v '^#' 882_894_aSet.vcf | awk -v OFS="\t" '{print $1, $2, $2}' \
   | awk -v OFS="\t" '{print $1, $2, $3, "snp_"$4}' > 882_894_aSet.bed
 
 bedtools intersect -u -a 875_888_aSet.bed -b 882_894_aSet.bed > consensus_aSet.bed
+```
 
+## Generate BED file of SNPs intersecting genes
 
+### Get gene IDs from Amel_HAv3.1.gff
+
+1) Remove lines beginning with "#" [`grep`].  
+2) Get rows with value "gene" in column 3 [`awk`].  
+3) Keep only column 9 [`awk`].  
+4) Remove "ID=" from beginning of each line [`cut`].  
+5) For each line, remove text after ";" [`cut`].
+
+```
 cd ${DIR_INDEX}
 
 grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
 | awk '{print $9}' | cut -c 4- | cut -f1 -d";" > GeneIDs.txt
+```
 
+### Get gene chromosome and coordinates from Amel_HAv3.1.gff
+
+1) Remove lines beginning with "#" [`grep`].  
+2) Get rows with value "gene" in column 3 [`awk`].  
+3) Keep columns 1 (chromosome), 4 (start), and 5 (stop) [`awk`].
+
+```
 grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
 | awk -v OFS="\t" '{print $1, $4, $5}' > col123.txt
+```
 
+### Get gene strand from Amel_HAv3.1.gff
+
+1) Remove lines beginning with "#" [`grep`].  
+2) Get rows with value "gene" in column 3 [`awk`].  
+3) Keep only column 7 (strand), 4 (start), and 5 (stop) [`awk`].
+
+```
 grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
 | awk -v OFS="\t" '{print $7}' > strand.txt
+```
 
+### Generate BED file of genes
+
+1) Combine columns 1-4 and add an empty "score" column (filled with ".") [`paste`, `awk`].  
+2) Add the strand column and sort by chromosome and coordinate [`paste`, `awk`, `sort`].
+
+```
 paste -d'\t' col123.txt GeneIDs.txt \
 | awk -v OFS="\t" '{print $1, $2, $3, $4, "."}' > col12345.txt
 
 paste -d'\t' col12345.txt strand.txt \
 | sort -k1,1V -k2,2n -k3,3n > Amel_HAv3.1_genes.bed
+```
 
+### Generate BED file of each SNP:gene
+
+1) Find intersect of consensus SNPs and genes, and report those that overlap [`bedtools intersect`].  
+2) Generate BED file from overlaps, with column 4 (name) joining the SNP ID from column 10 to the gene name from column 4 [`awk`].  
+3) Remove mitochondrial genes (annotated on chromosome NC_001566.1) [`grep`] and sort by chromosome and coordinates [`sort`].
+
+```
 conda activate bedtools
 
 bedtools intersect -wb -a Amel_HAv3.1_genes.bed \
@@ -555,13 +634,12 @@ awk -v OFS="\t" '{print $7, $8, $9, $10 ":" $4, $5, $6}' consensus_aSet_geneOver
 conda deactivate
 ```
 
-## Compute strand-wise read coverage at each SNP
+## Compute strand-wise read coverage at each SNP:gene
+
+Count [`bedtools coverage`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, accounting for strandedness [`-S` since gene transcripts are antisense.]
 
 ```
 conda activate bedtools
-
-DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_snps"
-DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
 
 
 for i in "${l875Q[@]}"
