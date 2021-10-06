@@ -97,7 +97,6 @@ conda install -c bioconda -n bedtools bedtools
 ## Define directory variables
 
 ```
-DIR_NCBI="/storage/home/stb5321/.ncbi"
 DIR_SRA="/storage/home/stb5321/scratch/galbraith/raw"
 DIR_TRIM="/storage/home/stb5321/scratch/galbraith/trimmed"
 DIR_INDEX="/storage/home/stb5321/scratch/galbraith/index"
