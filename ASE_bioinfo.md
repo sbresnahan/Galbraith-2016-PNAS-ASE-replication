@@ -602,7 +602,7 @@ grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
 ### Generate BED file of genes
 
 1) Combine columns 1-4 and add an empty "score" column (filled with ".") [`paste`, `awk`].  
-2) Add the strand column and sort by chromosome and coordinate [`paste`, `awk`, `sort`].
+2) Add the strand column and sort by chromosome and coordinate [`paste`, `sort`].
 
 ```
 paste -d'\t' col123.txt GeneIDs.txt \
