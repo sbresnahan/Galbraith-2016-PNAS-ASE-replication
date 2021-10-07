@@ -6,7 +6,7 @@ Replicating the bioinformatics and statistics pipelines for allele-specific expr
 https://github.com/sbresnahan/Galbraith_2016_PNAS_ASE_replication/blob/main/ASE_bioinfo.md
 
 ## Statistics pipeline (R)
-#### Markdown
-In prep.
+#### R Markdown
+https://sbresnahan.github.io/Galbraith-2016-PNAS-ASE-replication/
 #### Source code (R)
 https://github.com/sbresnahan/Galbraith_2016_PNAS_ASE_replication/blob/main/ASE_stats.R
