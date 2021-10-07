@@ -643,36 +643,36 @@ conda activate bedtools
 
 for i in "${l875Q[@]}"
 do
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/875Q_${i}.txt
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/875D_${i}.txt
 done
 
 
 for i in "${l888Q[@]}"
 do
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/888Q_${i}.txt
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/888D_${i}.txt
 done
 
 
 for i in "${l882Q[@]}"
 do
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/882Q_${i}.txt
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/882D_${i}.txt
 done
 
 
 for i in "${l894Q[@]}"
 do
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/894Q_${i}.txt
-bedtools coverage -s -counts -sorted -a SNPs_for_analysis.bed \
+bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
 -b ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/894D_${i}.txt
 done
 
