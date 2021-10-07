@@ -8,5 +8,5 @@ https://github.com/sbresnahan/Galbraith_2016_PNAS_ASE_replication/blob/main/ASE_
 ## Statistics pipeline (R)
 #### R Markdown
 https://sbresnahan.github.io/Galbraith-2016-PNAS-ASE-replication/
-#### Source code (R)
+#### Source code
 https://github.com/sbresnahan/Galbraith_2016_PNAS_ASE_replication/blob/main/ASE_stats.R
