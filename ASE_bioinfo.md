@@ -644,7 +644,7 @@ do
 bedtools bamtobed -i ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -654,7 +654,7 @@ bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
 bedtools bamtobed -i ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -668,7 +668,7 @@ do
 bedtools bamtobed -i ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -678,7 +678,7 @@ bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
 bedtools bamtobed -i ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -692,7 +692,7 @@ do
 bedtools bamtobed -i ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -702,7 +702,7 @@ bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
 bedtools bamtobed -i ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -716,7 +716,7 @@ do
 bedtools bamtobed -i ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
@@ -726,7 +726,7 @@ bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
 bedtools bamtobed -i ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bam \
 > ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed
 
-sort --parallel -k1,1 -k2,2n ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed \
+sort -k1,1 -k2,2n ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed
 
 bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
