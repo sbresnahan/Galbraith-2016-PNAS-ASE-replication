@@ -629,52 +629,111 @@ cd ${DIR_VARIANTS}
 
 awk -v OFS="\t" '{print $7, $8, $9, $10 ":" $4, $5, $6}' consensus_aSet_geneOverlaps.bed \
 | grep -v '^NC_001566.1' | sort -k1,1V -k2,2n -k3,3n | uniq > SNPs_for_analysis.bed
-
-conda deactivate
 ```
 
 ## Compute strand-wise read coverage at each SNP:gene
 
-Count [`bedtools coverage`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, accounting for strandedness [`-S` since gene transcripts are antisense.]
+Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, accounting for strandedness [`-S` since gene transcripts are antisense.]
 
 ```
-conda activate bedtools
+sort -k1,1 -k2,2n SNPs_for_analysis.bed > SNPs_for_analysis_sorted.bed
 
 
 for i in "${l875Q[@]}"
 do
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/875Q_${i}.txt
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/875D_${i}.txt
+bedtools bamtobed -i ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/875Q_${i}.txt
+
+bedtools bamtobed -i ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/875D_${i}.txt
 done
 
 
 for i in "${l888Q[@]}"
 do
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/888Q_${i}.txt
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/888D_${i}.txt
+bedtools bamtobed -i ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/888Q_${i}.txt
+
+bedtools bamtobed -i ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/888D_${i}.txt
 done
 
 
 for i in "${l882Q[@]}"
 do
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/882Q_${i}.txt
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/882D_${i}.txt
+bedtools bamtobed -i ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/882Q_${i}.txt
+
+bedtools bamtobed -i ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/882D_${i}.txt
 done
 
 
 for i in "${l894Q[@]}"
 do
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/894Q_${i}.txt
-bedtools coverage -S -counts -sorted -a SNPs_for_analysis.bed \
--b ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bam > ${DIR_COUNTS}/894D_${i}.txt
+bedtools bamtobed -i ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/894Q_${i}.txt
+
+bedtools bamtobed -i ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bam \
+> ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed
+
+sort --parallel -k1,1 -k2,2n ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed \
+> ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed
+
+bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+-b ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed \
+> ${DIR_COUNTS}/894D_${i}.txt
 done
+
 
 conda deactivate
 ```
