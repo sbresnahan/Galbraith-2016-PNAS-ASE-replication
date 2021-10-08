@@ -530,9 +530,9 @@ bgzip -c 894.vcf > 894.vcf.gz
 conda deactivate
 ```
 
-### Remove SNPs that are discordant between crosses within blocks but concordant between blocks (consensus SNPs)
+### Keep SNPs that are concordant between crosses (consensus SNPs)
 
-Find intersect between homozygous SNPs between crosses for each block and report those that do not overlap [`bedtools intersect`].
+Find intersect between homozygous SNPs between crosses for each block and report those that overlap [`bedtools intersect`].
 
 ```
 conda activate bedtools
