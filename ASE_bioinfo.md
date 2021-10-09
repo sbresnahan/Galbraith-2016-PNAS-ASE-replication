@@ -19,9 +19,9 @@ https://www.pnas.org/content/113/4/1020
   * Retrieve F1 RNA-seq libraries
   * Trim adapters from F1 RNA-seq libraries
   * Align F1 RNA-seq libraries to F0 genomes
-- [Count F1 reads over F0 SNPs](#count-f1-reads-over-f0-snps)
+- [Count F1 reads over F0 variants](#count-f1-reads-over-f0-variants)
   * Define directory variables
-  * Filter SNPs for analysis
+  * Filter variants for analysis
   * Generate BED file of each SNP:gene
   * Compute strand-wise read coverage at each SNP:gene
 
@@ -104,7 +104,7 @@ DIR_ALIGN="/storage/home/stb5321/scratch/galbraith/aligned"
 DIR_VARIANTS="/storage/home/stb5321/scratch/galbraith/variants"
 DIR_ARG="/storage/home/stb5321/scratch/galbraith/parent_genomes"
 INDEX_GTF="/storage/home/stb5321/scratch/galbraith/index/Amel_HAv3.1.gtf"
-DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_snps"
+DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_variants"
 DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
 ```
 
@@ -227,9 +227,9 @@ conda deactivate
 
 ## Generate F0 reference genomes
 
-1) Remove heterozygous variants [`bcftools filter`] from, and keep SNPs [`bcftools filter`] in, VCFs.  
+1) Remove heterozygous variants and indels [`bcftools filter`] from VCFs. NOTE: variants, MNPs, and complex variants are retained.
 2) Compress resultant VCFs and index [`bgzip`, `tabix`].  
-3) Integrate homozygous SNPs into Amel_HAv3.1 for each F0 library, separately [`bcftools consensus`].
+3) Integrate homozygous variants into Amel_HAv3.1 for each F0 library, separately [`bcftools consensus`].
 
 ```
 conda activate bcftools
@@ -238,11 +238,18 @@ cd ${DIR_VARIANTS}
 
 for i in "${SRA[@]}"
 do
-  bcftools filter -e 'GT="het"' ${i}.vcf \
-  | bcftools filter -i 'TYPE="snp"' - > ${i}_typefilter.vcf
+  bcftools filter -e 'GT="het" | 'TYPE="indel"' - > ${i}_typefilter.vcf
   bgzip -c ${i}_typefilter.vcf > ${i}_typefilter.vcf.gz
   tabix -p vcf ${i}_typefilter.vcf.gz
   bcftools consensus -f ${INDEX} -o ${DIR_ARG}/${i}.fna ${i}_typefilter.vcf.gz
+done
+
+cd ${DIR_ARG}
+
+for i in "${SRA[@]}"
+do
+   sed '/^>/ s/ .*//' ${i}.fa > ${i}.fasta
+   rm ${i}.fa
 done
 
 conda deactivate
@@ -362,6 +369,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037350_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 
 STAR --genomeDir ${DIR_ARG}/SRR3037351_STAR \
      --runThreadN 8 \
@@ -371,6 +379,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037351_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 done
 
 
@@ -387,6 +396,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037352_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 
 STAR --genomeDir ${DIR_ARG}/SRR3037353_STAR \
      --runThreadN 8 \
@@ -396,6 +406,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037353_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 done
 
 
@@ -412,6 +423,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037354_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 
 STAR --genomeDir ${DIR_ARG}/SRR3037355_STAR \
      --runThreadN 8 \
@@ -421,6 +433,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037355_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 done
 
 
@@ -437,6 +450,7 @@ STAR --genomeDir ${DIR_ARG}/SRR3037356_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 
 STAR --genomeDir ${DIR_ARG}/SRR3037357_STAR \
      --runThreadN 8 \
@@ -446,12 +460,13 @@ STAR --genomeDir ${DIR_ARG}/SRR3037357_STAR \
      --outSAMtype BAM SortedByCoordinate \
      --outSAMunmapped None \
      --outSAMattributes Standard
+     --alignEndsType EndToEnd
 done
 
 conda deactivate
 ```
 
-# Count F1 reads over F0 SNPs
+# Count F1 reads over F0 variants
 
 ### Reciprocal cross colonies
 
@@ -463,15 +478,15 @@ conda deactivate
 ## Define directory variables
 
 ```
-DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_snps"
+DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_variants"
 DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
 ```
 
-## Filter SNPs for analysis
+## Filter variants for analysis
 
-### Remove concordant SNPs between parents
+### Remove concordant variants between parents
 
-Find intersect between homozygous SNPs in F0 parents and report those that do not overlap [`bedtools intersect`].
+Find intersect between homozygous variants in F0 parents and report those that do not overlap [`bedtools intersect`].
 
 ```
 cd ${DIR_VARIANTS}
@@ -509,7 +524,7 @@ conda deactivate
 ```
 
 1) Remove lines beginning with "#" from each VCF [`grep`].  
-2) Merge discordant SNPs to one VCF per cross [`cat`].  
+2) Merge discordant variants to one VCF per cross [`cat`].  
 3) Compress VCFs [`bgzip`].
 
 ```
@@ -530,9 +545,9 @@ bgzip -c 894.vcf > 894.vcf.gz
 conda deactivate
 ```
 
-### Keep SNPs that are concordant between crosses (consensus SNPs)
+### Keep variants that are concordant between crosses (consensus variants)
 
-Find intersect between homozygous SNPs between crosses for each block and report those that overlap [`bedtools intersect`].
+Find intersect between homozygous variants between crosses for each block and report those that overlap [`bedtools intersect`].
 
 ```
 conda activate bedtools
@@ -545,7 +560,7 @@ bedtools intersect -header -u -a 882.vcf.gz -b 894.vcf.gz > 882_894_aSet.vcf
 2) Keep only columns 1 (chromosome) and 2 (start coordinate of SNP), duplicate column 2 as column 3 (stop coordinate of SNP) [`awk`].  
 3) Add column 4 (name) as sequential list of numbers [`awk`].  
 4) Add "snp_" to beginning of each line at column 4 [`awk`].  
-5) Find SNPs shared between blocks and report those that overlap [`bedtools intersect`].
+5) Find variants shared between blocks and report those that overlap [`bedtools intersect`].
 
 ```
 grep -v '^#' 875_888_aSet.vcf | awk -v OFS="\t" '{print $1, $2, $2}' \
@@ -559,76 +574,14 @@ grep -v '^#' 882_894_aSet.vcf | awk -v OFS="\t" '{print $1, $2, $2}' \
 bedtools intersect -u -a 875_888_aSet.bed -b 882_894_aSet.bed > consensus_aSet.bed
 ```
 
-## Generate BED file of SNPs intersecting genes
-
-### Get gene IDs from Amel_HAv3.1.gff
-
-1) Remove lines beginning with "#" [`grep`].  
-2) Get rows with value "gene" in column 3 [`awk`].  
-3) Keep only column 9 [`awk`].  
-4) Remove "ID=" from beginning of each line [`cut`].  
-5) For each line, remove text after ";" [`cut`].
+## Generate BED file of variants intersecting genes
 
 ```
-cd ${DIR_INDEX}
+awk '$3 == "gene" { print $0 }' Amel_HAv3.1_OGSv3.2.gff3 | sed 's/;//g' > Amel_HAv3.1_OGSv3.2_genes.gff3
 
-grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
-| awk '{print $9}' | cut -c 4- | cut -f1 -d";" > GeneIDs.txt
-```
-
-### Get gene chromosome and coordinates from Amel_HAv3.1.gff
-
-1) Remove lines beginning with "#" [`grep`].  
-2) Get rows with value "gene" in column 3 [`awk`].  
-3) Keep columns 1 (chromosome), 4 (start), and 5 (stop) [`awk`].
-
-```
-grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
-| awk -v OFS="\t" '{print $1, $4, $5}' > col123.txt
-```
-
-### Get gene strand from Amel_HAv3.1.gff
-
-1) Remove lines beginning with "#" [`grep`].  
-2) Get rows with value "gene" in column 3 [`awk`].  
-3) Keep only column 7 (strand), 4 (start), and 5 (stop) [`awk`].
-
-```
-grep -v '^#' Amel_HAv3.1.gff | awk '$3 == "gene" { print $0 }' \
-| awk -v OFS="\t" '{print $7}' > strand.txt
-```
-
-### Generate BED file of genes
-
-1) Combine columns 1-4 and add an empty "score" column (filled with ".") [`paste`, `awk`].  
-2) Add the strand column and sort by chromosome and coordinate [`paste`, `sort`].
-
-```
-paste -d'\t' col123.txt GeneIDs.txt \
-| awk -v OFS="\t" '{print $1, $2, $3, $4, "."}' > col12345.txt
-
-paste -d'\t' col12345.txt strand.txt \
-| sort -k1,1V -k2,2n -k3,3n > Amel_HAv3.1_genes.bed
-```
-
-### Generate BED file of each SNP:gene
-
-1) Find intersect of consensus SNPs and genes, and report those that overlap [`bedtools intersect`].  
-2) Generate BED file from overlaps, with column 4 (name) joining the SNP ID from column 10 to the gene name from column 4 [`awk`].  
-3) Remove mitochondrial genes (annotated on chromosome NC_001566.1) [`grep`] and sort by chromosome and coordinates [`sort`].
-
-```
-conda activate bedtools
-
-bedtools intersect -wb -a Amel_HAv3.1_genes.bed \
--b ${DIR_VARIANTS}/consensus_aSet.bed \
-> ${DIR_VARIANTS}/consensus_aSet_geneOverlaps.bed
-
-
-cd ${DIR_VARIANTS}
-
-awk -v OFS="\t" '{print $7, $8, $9, $10 ":" $4, $5, $6}' consensus_aSet_geneOverlaps.bed \
-| grep -v '^NC_001566.1' | sort -k1,1V -k2,2n -k3,3n | uniq > SNPs_for_analysis.bed
+bedtools intersect -wb -a Amel_HAv3.1_OGSv3.2_genes.gff3 -b ${DIR_VARIANTS}/consensus_aSet.bed \
+| awk -v OFS="\t" '{print $10, $11, $12, $13 ":" $9, $6, $7}' \
+| grep -v '^NC_001566.1' | sort -k1,1V -k2,2n > ${DIR_VARIANTS}/SNPs_for_analysis.bed
 ```
 
 ## Compute strand-wise read coverage at each SNP:gene
@@ -636,7 +589,7 @@ awk -v OFS="\t" '{print $7, $8, $9, $10 ":" $4, $5, $6}' consensus_aSet_geneOver
 Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, accounting for strandedness [`-S` since gene transcripts are antisense.]
 
 ```
-sort --parallel=8 -k1,1 -k2,2n SNPs_for_analysis.bed > SNPs_for_analysis_sorted.bed
+sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > variants_for_analysis_sorted.bed
 
 
 for i in "${l875Q[@]}"
@@ -647,7 +600,7 @@ bedtools bamtobed -i ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/875Q_${i}.txt
 
@@ -657,7 +610,7 @@ bedtools bamtobed -i ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/875D_${i}.txt
 done
@@ -671,7 +624,7 @@ bedtools bamtobed -i ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/888Q_${i}.txt
 
@@ -681,7 +634,7 @@ bedtools bamtobed -i ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/888D_${i}.txt
 done
@@ -695,7 +648,7 @@ bedtools bamtobed -i ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/882Q_${i}.txt
 
@@ -705,7 +658,7 @@ bedtools bamtobed -i ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/882D_${i}.txt
 done
@@ -719,7 +672,7 @@ bedtools bamtobed -i ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/894Q_${i}.txt
 
@@ -729,7 +682,7 @@ bedtools bamtobed -i ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bam \
 sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed \
 > ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed
 
-bedtools intersect -sorted -S -c -a SNPs_for_analysis_sorted.bed \
+bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
 -b ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed \
 > ${DIR_COUNTS}/894D_${i}.txt
 done
