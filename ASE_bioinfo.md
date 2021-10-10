@@ -239,7 +239,7 @@ cd ${DIR_VARIANTS}
 for i in "${SRA[@]}"
 do
   bcftools filter -e 'GT="het" ${i}.vcf \
-  | bcftools filter -e 'TYPE="ins"' - | bcftools filter -e 'TYPE="del"' - > ${i}_typefilter.vcf
+  | bcftools filter -e 'TYPE="indel"' - > ${i}_typefilter.vcf
   bgzip -c ${i}_typefilter.vcf > ${i}_typefilter.vcf.gz
   tabix -p vcf ${i}_typefilter.vcf.gz
   bcftools consensus -f ${INDEX} -o ${DIR_ARG}/${i}.fna ${i}_typefilter.vcf.gz
