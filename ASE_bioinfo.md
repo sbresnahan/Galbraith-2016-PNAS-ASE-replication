@@ -49,10 +49,10 @@ conda create --name bwa
 conda install -c bioconda -n bwa bwa
 ```
 
-##### star
+##### tophat2
 ```
-conda create --name star
-conda install -c bioconda -n star star
+conda create --name tophat2
+conda install -c bioconda -n tophat2 tophat
 ```
 
 ##### freebayes
@@ -71,6 +71,12 @@ conda install -c bioconda -n samtools samtools
 ```
 conda create --name bcftools
 conda install -c bioconda -n bcftools bcftools
+```
+
+##### gatk
+```
+conda create --name gatk
+conda install -c bioconda -n gatk gatk
 ```
 
 ##### bedtools
@@ -104,8 +110,9 @@ DIR_ALIGN="/storage/home/stb5321/scratch/galbraith/aligned"
 DIR_VARIANTS="/storage/home/stb5321/scratch/galbraith/variants"
 DIR_ARG="/storage/home/stb5321/scratch/galbraith/parent_genomes"
 INDEX_GTF="/storage/home/stb5321/scratch/galbraith/index/Amel_HAv3.1.gtf"
-DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_variants"
-DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
+DIR_RNA="/storage/home/stb5321/scratch/galbraith/tophat2"
+DIR_RNA_SORT="/storage/home/stb5321/scratch/galbraith/tophat2_nomm_sort"
+DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/tophat2_counts"
 ```
 
 ## Retrieve F0 DNA-seq libraries
@@ -229,50 +236,49 @@ conda deactivate
 
 1) Remove heterozygous variants and indels [`bcftools filter`] from VCFs. NOTE: variants, MNPs, and complex variants are retained.
 2) Compress resultant VCFs and index [`bgzip`, `tabix`].  
-3) Integrate homozygous variants into Amel_HAv3.1 for each F0 library, separately [`bcftools consensus`].
+3) Integrate homozygous variants into Amel_HAv3.1 for each F0 library, separately [`gatk FastaAlternateReferenceMaker`].
 
 ```
-conda activate bcftools
+conda activate gatk
 
 cd ${DIR_VARIANTS}
 
 for i in "${SRA[@]}"
 do
-  bcftools filter -e 'GT="het" ${i}.vcf \
-  | bcftools filter -e 'TYPE="indel"' - > ${i}_typefilter.vcf
-  bgzip -c ${i}_typefilter.vcf > ${i}_typefilter.vcf.gz
-  tabix -p vcf ${i}_typefilter.vcf.gz
-  bcftools consensus -f ${INDEX} -o ${DIR_ARG}/${i}.fna ${i}_typefilter.vcf.gz
-done
-
-cd ${DIR_ARG}
-
-for i in "${SRA[@]}"
-do
-   sed '/^>/ s/ .*//' ${i}.fa > ${i}.fasta
-   rm ${i}.fa
+   conda activate bcftools
+   bcftools filter -e 'GT="het"' ${i}.vcf \
+   | bcftools filter -i 'TYPE="snp"' - > ${i}_typefilter_snp.vcf
+   bgzip -c ${i}_typefilter_snp.vcf > ${i}_typefilter_snp.vcf.gz
+   tabix -p vcf ${i}_typefilter_snp.vcf.gz
+   conda deactivate
+   conda activate gatk
+   gatk FastaAlternateReferenceMaker -R ${INDEX} -O ${DIR_ARG}/${i}.fasta -V ${i}_typefilter_snp.vcf.gz
+   conda deactivate
 done
 
 conda deactivate
-```
 
-## Create STAR indices for each F0 genome
-
-```
 cd ${DIR_ARG}
 
-conda activate star
+grep ">" SRR3037350.fasta | sed 's/>//g' > bad_headers.txt
+grep ">" ${DIR_INDEX}/Amel_HAv3.1.fna | sed 's/\s.*$//' | sed 's/>//g' > good_headers.txt
+paste -d"\t" bad_headers.txt good_headers.txt > replace_headers.tsv
 
 for i in "${SRA[@]}"
 do
-  mkdir ${i}_STAR
-  STAR --runThreadN 8 \
-  --runMode genomeGenerate \
-  --genomeDir ${i}_STAR \
-  --genomeFastaFiles ${i}.fna \
-  --sjdbGTFfile ${INDEX_GTF} \
-  --sjdbOverhang 99 \
-  --genomeSAindexNbases 12
+awk 'FNR==NR{  a[">"$1]=$2;next}$1 in a{  sub(/>/,">"a[$1]"|",$1)}1' \
+replace_headers.tsv ${i}.fasta | sed 's/:.*//' > ${i}.fa
+done
+```
+
+## Create tophat2 indices for each F0 genome
+
+```
+conda activate tophat2
+
+for i in "${SRA[@]}"
+do
+bowtie2-build ${i}.fa ${i}
 done
 
 conda deactivate
@@ -349,119 +355,64 @@ conda deactivate
 
 ## Align F1 RNA-seq libraries to F0 genomes
 
-Align [`STAR`] F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) to respective F0 genomes, allowing for 0 mismatches and output coordinate-sorted BAM.
+Align [`tophat2`] F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) to respective F0 genomes, allowing for 0 mismatches and output coordinate-sorted BAM.
 
 ```
 cd ${DIR_TRIM}
 
-conda activate star
-
-
+## SRR3037350 (875Q|E) vs SRR3037351 (875D|A)
 l875Q=("SRR3033262" "SRR3033263" "SRR3033264" \
-      "SRR3033249" "SRR3033250" "SRR3033251")
+       "SRR3033249" "SRR3033250" "SRR3033251")
 
 for i in "${l875Q[@]}"
 do
-STAR --genomeDir ${DIR_ARG}/SRR3037350_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/875Q_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875Q_${i} \
+${DIR_ARG}/SRR3037350 ${i}_1.fastq ${i}_2.fastq
 
-STAR --genomeDir ${DIR_ARG}/SRR3037351_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/875D_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875D_${i} \
+${DIR_ARG}/SRR3037351 ${i}_1.fastq ${i}_2.fastq
 done
 
 
+## SRR3037352 (888Q|A) vs SRR3037353 (888D|E)
 l888Q=("SRR3033268" "SRR3033269" "SRR3033270" \
-      "SRR3033256" "SRR3033257" "SRR3033258")
+       "SRR3033256" "SRR3033257" "SRR3033258")
 
 for i in "${l888Q[@]}"
 do
-STAR --genomeDir ${DIR_ARG}/SRR3037352_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/888Q_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888Q_${i} \
+${DIR_ARG}/SRR3037352 ${i}_1.fastq ${i}_2.fastq
 
-STAR --genomeDir ${DIR_ARG}/SRR3037353_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/888D_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888D_${i} \
+${DIR_ARG}/SRR3037353 ${i}_1.fastq ${i}_2.fastq
 done
 
 
+## SRR3037354 (882Q|E) vs SRR3037355 (882D|A)
 l882Q=("SRR3033265" "SRR3033266" "SRR3033267" \
-      "SRR3033252" "SRR3033253" "SRR3033254" "SRR3033255")
+       "SRR3033252" "SRR3033253" "SRR3033254" "SRR3033255")
 
 for i in "${l882Q[@]}"
 do
-STAR --genomeDir ${DIR_ARG}/SRR3037354_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/882Q_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882Q_${i} \
+${DIR_ARG}/SRR3037354 ${i}_1.fastq ${i}_2.fastq
 
-STAR --genomeDir ${DIR_ARG}/SRR3037355_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/882D_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882D_${i} \
+${DIR_ARG}/SRR3037355 ${i}_1.fastq ${i}_2.fastq
 done
 
 
+## SRR3037356 (894Q|A) vs SRR3037357 (894D|E)
 l894Q=("SRR3033271" "SRR3033272" "SRR3033273" \
-      "SRR3033259" "SRR3033260" "SRR3033261")
+       "SRR3033259" "SRR3033260" "SRR3033261")
 
 for i in "${l894Q[@]}"
 do
-STAR --genomeDir ${DIR_ARG}/SRR3037356_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/894Q_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894Q_${i} \
+${DIR_ARG}/SRR3037356 ${i}_1.fastq ${i}_2.fastq
 
-STAR --genomeDir ${DIR_ARG}/SRR3037357_STAR \
-     --runThreadN 8 \
-     --outFilterMismatchNmax 0 \
-     --readFilesIn ${i}_1.fastq ${i}_2.fastq \
-     --outFileNamePrefix ${DIR_ALIGN}/894D_${i} \
-     --outSAMtype BAM SortedByCoordinate \
-     --outSAMunmapped None \
-     --outSAMattributes Standard
-     --alignEndsType EndToEnd
+tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894D_${i} \
+${DIR_ARG}/SRR3037357 ${i}_1.fastq ${i}_2.fastq
 done
 
 conda deactivate
@@ -583,111 +534,154 @@ awk '$3 == "gene" { print $0 }' Amel_HAv3.1_OGSv3.2.gff3 | sed 's/;//g' > Amel_H
 bedtools intersect -wb -a Amel_HAv3.1_OGSv3.2_genes.gff3 -b ${DIR_VARIANTS}/consensus_aSet.bed \
 | awk -v OFS="\t" '{print $10, $11, $12, $13 ":" $9, $6, $7}' \
 | grep -v '^NC_001566.1' | sort -k1,1V -k2,2n > ${DIR_VARIANTS}/SNPs_for_analysis.bed
+
+conda deactivate
 ```
 
 ## Compute strand-wise read coverage at each SNP:gene
 
-Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, accounting for strandedness [`-S` since gene transcripts are antisense.]
+Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene.
 
 ```
-sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > variants_for_analysis_sorted.bed
+sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > snps_for_analysis_sorted.bed
 
 
 for i in "${l875Q[@]}"
 do
-bedtools bamtobed -i ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed
+conda activate bamtools
+bamtools filter -tag XM:0 -in ${DIR_RNA}/875Q_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/875Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_RNA}/875D_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/875D_${i}/nomm_hits.bam
 
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed
+conda deactivate
+conda activate bedtools
 
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/875Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+bedtools bamtobed -i ${DIR_RNA}/875Q_${i}/nomm_hits.bam \
+> ${DIR_RNA}/875Q_${i}/nomm_hits.bed
+
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/875Q_${i}_nomm_hits_sorted.bed
+
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/875Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/875Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed
+bedtools bamtobed -i ${DIR_RNA}/875D_${i}/nomm_hits.bam \
+> ${DIR_RNA}/875D_${i}/nomm_hits.bed
 
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/875D_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/875D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/875D_${i}Aligned.sortedByCoord.out.sorted.bed \
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/875D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/875D_${i}.txt
+
+conda deactivate
 done
 
 
 for i in "${l888Q[@]}"
 do
-bedtools bamtobed -i ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed
+conda activate bamtools
+bamtools filter -tag XM:0 -in ${DIR_RNA}/888Q_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/888Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_RNA}/888D_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/888D_${i}/nomm_hits.bam
 
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed
+conda deactivate
+conda activate bedtools
 
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/888Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+bedtools bamtobed -i ${DIR_RNA}/888Q_${i}/nomm_hits.bam \
+> ${DIR_RNA}/888Q_${i}/nomm_hits.bed
+
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/888Q_${i}_nomm_hits_sorted.bed
+
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/888Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/888Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed
+bedtools bamtobed -i ${DIR_RNA}/888D_${i}/nomm_hits.bam \
+> ${DIR_RNA}/888D_${i}/nomm_hits.bed
 
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/888D_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/888D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/888D_${i}Aligned.sortedByCoord.out.sorted.bed \
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/888D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/888D_${i}.txt
+
+conda deactivate
 done
 
 
 for i in "${l882Q[@]}"
 do
-bedtools bamtobed -i ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed
+conda activate bamtools
+bamtools filter -tag XM:0 -in ${DIR_RNA}/882Q_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/882Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_RNA}/882D_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/882D_${i}/nomm_hits.bam
 
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed
+conda deactivate
+conda activate bedtools
 
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/882Q_${i}Aligned.sortedByCoord.out.sorted.bed \
+bedtools bamtobed -i ${DIR_RNA}/882Q_${i}/nomm_hits.bam \
+> ${DIR_RNA}/882Q_${i}/nomm_hits.bed
+
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/882Q_${i}_nomm_hits_sorted.bed
+
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/882Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/882Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed
+bedtools bamtobed -i ${DIR_RNA}/882D_${i}/nomm_hits.bam \
+> ${DIR_RNA}/882D_${i}/nomm_hits.bed
 
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/882D_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/882D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/882D_${i}Aligned.sortedByCoord.out.sorted.bed \
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/882D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/882D_${i}.txt
+
+conda deactivate
 done
 
 
 for i in "${l894Q[@]}"
 do
-bedtools bamtobed -i ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed
-
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed
-
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/894Q_${i}Aligned.sortedByCoord.out.sorted.bed \
-> ${DIR_COUNTS}/894Q_${i}.txt
-
-bedtools bamtobed -i ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bam \
-> ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed
-
-sort --parallel=8 -k1,1 -k2,2n ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.bed \
-> ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed
-
-bedtools intersect -sorted -S -c -a variants_for_analysis_sorted.bed \
--b ${DIR_RNA}/894D_${i}Aligned.sortedByCoord.out.sorted.bed \
-> ${DIR_COUNTS}/894D_${i}.txt
-done
-
+conda activate bamtools
+bamtools filter -tag XM:0 -in ${DIR_RNA}/894Q_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/894Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_RNA}/894D_${i}/accepted_hits.bam \
+-out ${DIR_RNA}/894D_${i}/nomm_hits.bam
 
 conda deactivate
+conda activate bedtools
+
+bedtools bamtobed -i ${DIR_RNA}/894Q_${i}/nomm_hits.bam \
+> ${DIR_RNA}/894Q_${i}/nomm_hits.bed
+
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/894Q_${i}_nomm_hits_sorted.bed
+
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/894Q_${i}_nomm_hits_sorted.bed \
+> ${DIR_COUNTS}/894Q_${i}.txt
+
+bedtools bamtobed -i ${DIR_RNA}/894D_${i}/nomm_hits.bam \
+> ${DIR_RNA}/894D_${i}/nomm_hits.bed
+
+sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/894D_${i}/nomm_hits.bed \
+> ${DIR_RNA_SORT}/894D_${i}_nomm_hits_sorted.bed
+
+bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+-b ${DIR_RNA_SORT}/894D_${i}_nomm_hits_sorted.bed \
+> ${DIR_COUNTS}/894D_${i}.txt
+
+conda deactivate
+done
 ```
