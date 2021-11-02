@@ -157,11 +157,9 @@ cd ${DIR_INDEX}
 wget -O Amel_HAv3.1.fna.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.fna.gz
 gunzip Amel_HAv3.1.fna.gz
 
-wget -O Amel_HAv3.1.gff.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.gff.gz
-gunzip Amel_HAv3.1.gff.gz
-
-wget -O Amel_HAv3.1.gtf.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.gtf.gz
-gunzip Amel_HAv3.1.gtf.gz
+wget -O https://elsiklab-data.missouri.edu/data/hgd/gene_gff3/ogs/Apis_mellifera_amel_OGSv3.2_liftover_Amel_HAv3.1.gff3.gz
+gunzip Apis_mellifera_amel_OGSv3.2_liftover_Amel_HAv3.1.gff3.gz
+mv Apis_mellifera_amel_OGSv3.2_liftover_Amel_HAv3.1.gff3 Amel_HAv3.1_OGSv3.2.gff3
 
 conda activate bwa
 
@@ -239,6 +237,8 @@ conda deactivate
 3) Integrate homozygous variants into Amel_HAv3.1 for each F0 library, separately [`gatk FastaAlternateReferenceMaker`].
 
 ```
+INDEX="${DIR_INDEX}/Amel_HAv3.1_OGSv3.2.gff3"
+
 conda activate gatk
 
 cd ${DIR_VARIANTS}
