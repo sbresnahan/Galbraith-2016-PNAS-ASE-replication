@@ -355,7 +355,7 @@ conda deactivate
 
 ## Align F1 RNA-seq libraries to F0 genomes
 
-Align [`tophat2`] F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) to respective F0 genomes, allowing for 0 mismatches and output coordinate-sorted BAM.
+Align [`tophat2`] F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) to respective F0 genomes and output coordinate-sorted BAM.
 
 ```
 cd ${DIR_TRIM}
@@ -540,7 +540,7 @@ conda deactivate
 
 ## Compute strand-wise read coverage at each SNP:gene
 
-Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene.
+Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, requiring 0 mismatches.
 
 ```
 sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > snps_for_analysis_sorted.bed
