@@ -538,7 +538,7 @@ bedtools intersect -wb -a Amel_HAv3.1_OGSv3.2_genes.gff3 -b ${DIR_VARIANTS}/cons
 conda deactivate
 ```
 
-## Compute strand-wise read coverage at each SNP:gene
+## Compute read coverage at each SNP:gene
 
 Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, requiring 0 mismatches.
 
