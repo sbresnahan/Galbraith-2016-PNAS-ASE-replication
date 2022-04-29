@@ -366,10 +366,10 @@ l875Q=("SRR3033262" "SRR3033263" "SRR3033264" \
 
 for i in "${l875Q[@]}"
 do
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875Q_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875Q_${i} \
 ${DIR_ARG}/SRR3037350 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875D_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875D_${i} \
 ${DIR_ARG}/SRR3037351 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -380,10 +380,10 @@ l888Q=("SRR3033268" "SRR3033269" "SRR3033270" \
 
 for i in "${l888Q[@]}"
 do
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888Q_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888Q_${i} \
 ${DIR_ARG}/SRR3037352 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888D_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888D_${i} \
 ${DIR_ARG}/SRR3037353 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -394,10 +394,10 @@ l882Q=("SRR3033265" "SRR3033266" "SRR3033267" \
 
 for i in "${l882Q[@]}"
 do
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882Q_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882Q_${i} \
 ${DIR_ARG}/SRR3037354 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882D_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882D_${i} \
 ${DIR_ARG}/SRR3037355 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -408,10 +408,10 @@ l894Q=("SRR3033271" "SRR3033272" "SRR3033273" \
 
 for i in "${l894Q[@]}"
 do
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894Q_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894Q_${i} \
 ${DIR_ARG}/SRR3037356 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894D_${i} \
+tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894D_${i} \
 ${DIR_ARG}/SRR3037357 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -540,7 +540,7 @@ conda deactivate
 
 ## Compute read coverage at each SNP:gene
 
-Count [`bedtools intersect`] reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, requiring 0 mismatches.
+Count [`bedtools intersect`] strand-wise reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, requiring 0 mismatches.
 
 ```
 sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > snps_for_analysis_sorted.bed
@@ -563,7 +563,7 @@ bedtools bamtobed -i ${DIR_RNA}/875Q_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/875Q_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/875Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/875Q_${i}.txt
 
@@ -573,7 +573,7 @@ bedtools bamtobed -i ${DIR_RNA}/875D_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/875D_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/875D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/875D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/875D_${i}.txt
 
@@ -598,7 +598,7 @@ bedtools bamtobed -i ${DIR_RNA}/888Q_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/888Q_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/888Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/888Q_${i}.txt
 
@@ -608,7 +608,7 @@ bedtools bamtobed -i ${DIR_RNA}/888D_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/888D_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/888D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/888D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/888D_${i}.txt
 
@@ -633,7 +633,7 @@ bedtools bamtobed -i ${DIR_RNA}/882Q_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/882Q_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/882Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/882Q_${i}.txt
 
@@ -643,7 +643,7 @@ bedtools bamtobed -i ${DIR_RNA}/882D_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/882D_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/882D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/882D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/882D_${i}.txt
 
@@ -668,7 +668,7 @@ bedtools bamtobed -i ${DIR_RNA}/894Q_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/894Q_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/894Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/894Q_${i}.txt
 
@@ -678,7 +678,7 @@ bedtools bamtobed -i ${DIR_RNA}/894D_${i}/nomm_hits.bam \
 sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/894D_${i}/nomm_hits.bed \
 > ${DIR_RNA_SORT}/894D_${i}_nomm_hits_sorted.bed
 
-bedtools intersect -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
+bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
 -b ${DIR_RNA_SORT}/894D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/894D_${i}.txt
 
