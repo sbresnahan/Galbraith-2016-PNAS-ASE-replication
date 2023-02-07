@@ -1,0 +1,650 @@
+---
+title: "Reanalysis: Testing the Kinship Theory of Intragenomic Conflict in Honey Bees"
+author: "Sean Bresnahan"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+Replicating pipeline and results described in [Galbraith et al. (2016). PNAS.](https://www.pnas.org/content/113/4/1020)
+
+F1 Read counts and BED files of F0 variants are imported.
+
+SNPs intersecting $n > 2$ genes, $n = 2$ genes with transcripts annotated 
+on the same strand, or within mitochondrial, miRNA, or tRNA genes are discarded.
+
+SNPs with $n < 10$ read counts in any cross; SNPs where the distance between 
+the nearest SNP is shorter than the average read length (thus the read counts 
+are exactly the same for both SNPs), and genes with $n < 2$ SNPs are discarded.
+
+For each SNP, a Storer-Kim binomial exact test of two proportions is conducted 
+to test the hypothesis that the proportion of maternal read counts is 
+significantly different from the proportion of paternal read counts.
+
+Previously established cutoffs for p1 (the proportion of "A" allele counts in 
+individuals from the "EHBxAHB" cross) and p2 (the proportion of "A" allele counts 
+in individuals from the "AHBxEHB" cross) are required for a gene to be considered 
+as showing parent or lineage biased.
+
+A GLIMMIX model [lmer(count\~parent∗lineage+(1\|SNP)+(1\|individual))] is fit 
+for each gene to assess the effects of parent, lineage, and their interaction, 
+on the quantity of read counts at each SNP.
+
+For a gene to be considered as showing parent or lineage biases, all SNPs 
+are required to exhibit the same directional bias in both tests.
+
+Genes exhibiting significant parent∗lineage effects are considered unbiased. 
+
+------------------------------------------------------------------------
+
+# Requirements
+
+```{r,message=F}
+library(tidyverse)
+library(plyr)
+library(Rfast)
+library(tryCatchLog)
+library(lmerTest)
+library(car)
+library(viridis)
+library(gridExtra)
+library(kableExtra)
+library(gghalves)
+library(ggdist)
+library(ggpubr)
+library(grid)
+```
+
+# Setup
+
+## Sample metadata
+
+```{r}
+metadata <- read.csv("metadata.csv")
+kbl(metadata) %>% kable_styling()
+```
+
+## Load read counts at SNPs
+
+```{r}
+sterile_counts <- read.csv("sterile_counts.csv")
+sterile_counts <- sterile_counts[!sterile_counts$ID==".",]
+sterile_counts$SNP.gene <- paste(paste(sterile_counts$Chrm,
+                                            sterile_counts$SNP.pos,sep="|"),
+                                      sterile_counts$ID,sep=":")
+row.names(sterile_counts) <- sterile_counts$SNP.gene
+sterile_counts$SNP.gene <- NULL
+sterile_counts$Chrm <- NULL
+sterile_counts$SNP.pos <- NULL
+sterile_counts$ID <- NULL
+
+reproductive_counts <- read.csv("reproductive_counts.csv")
+reproductive_counts <- reproductive_counts[!reproductive_counts$ID==".",]
+reproductive_counts$SNP.gene <- paste(paste(reproductive_counts$Chrm,
+                                            reproductive_counts$SNP.pos,sep="|"),
+                                      reproductive_counts$ID,sep=":")
+row.names(reproductive_counts) <- reproductive_counts$SNP.gene
+reproductive_counts$SNP.gene <- NULL
+reproductive_counts$Chrm <- NULL
+reproductive_counts$SNP.pos <- NULL
+reproductive_counts$ID <- NULL
+```
+
+## Filter SNPs
+
+1) Remove rows with 0 counts by cross
+2) Remove rows with > 10000 read counts (cannot run SK test on these)
+3) Remove genes with < 2 SNPs
+
+```{r, eval=F}
+filter.SNPs <- function(counts,metadata,lcf){
+  # Remove rows with < lcf counts counts by block and cross
+  LA1 <- metadata[metadata$block==1&metadata$cross=="A","sample.id"]
+  LA2 <- metadata[metadata$block==2&metadata$cross=="A","sample.id"]
+  LB1 <- metadata[metadata$block==1&metadata$cross=="B","sample.id"]
+  LB2 <- metadata[metadata$block==2&metadata$cross=="B","sample.id"]
+  counts <- counts[rowSums(counts[,names(counts)%in%LA1])>lcf,]
+  counts <- counts[rowSums(counts[,names(counts)%in%LA2])>lcf,]
+  counts <- counts[rowSums(counts[,names(counts)%in%LB1])>lcf,]
+  counts <- counts[rowSums(counts[,names(counts)%in%LB2])>lcf,]
+  # Remove rows with greater than 10000 counts (cannot run SK test on these)
+  counts$SUM <- rowSums(counts)
+  counts <- counts[counts$SUM<10000,]
+  counts$SUM <- NULL
+  # Remove rows with duplicate counts and with < 2 SNPs
+  counts$gene <- as.character(map(strsplit(row.names(counts), split = ":"), 2))
+  genelist <- unique(counts$gene)
+  delete.rows <- list()
+  for(i in 1:length(genelist)){
+    tmp <- counts[counts$gene==genelist[i],]
+    tmp <- tmp[!duplicated(tmp),]
+    if(length(row.names(tmp))<2){delete.rows <- append(delete.rows,genelist[i])}
+  }
+  counts <- counts[!counts$gene%in%unlist(delete.rows),]
+  counts$gene <- NULL
+  # Return filtered counts
+  return(counts)
+}
+
+sterile_counts <- filter.SNPs(sterile_counts,metadata,1)
+write.csv(sterile_counts,"EHBxAHB_sterile_counts.csv")
+reproductive_counts <- filter.SNPs(reproductive_counts,metadata,1)
+write.csv(reproductive_counts,"EHBxAHB_reproductive_counts.csv")
+```
+
+```{r,echo=F}
+sterile_counts <- read.csv("EHBxAHB_sterile_counts.csv",
+                           row.names=1,header=1)
+reproductive_counts <- read.csv("EHBxAHB_reproductive_counts.csv",
+                                row.names=1,header=1)
+```
+
+# Functions for statistical tests
+
+## Storer-Kim test [`twobinom`]
+
+(Function from the WRS2 package). Test the hypothesis that two independent 
+binomials have equal probability of success using the Storer--Kim method.
+
+```{r, eval=F}
+twobinom<-function(r1,n1,r2,n2,alpha=.05){
+  # Modified for efficiency: changed outer() command to Rfast::Outer()
+  n1p<-n1+1
+  n2p<-n2+1
+  n1m<-n1-1
+  n2m<-n2-1
+  q <- r1/n1
+  p <- r2/n2
+  if(is.na(q)){q <- 0}
+  if(is.na(p)){p <- 0}
+  chk<-abs(q-p)
+  x<-c(0:n1)/n1
+  y<-c(0:n2)/n2
+  phat<-(r1+r2)/(n1+n2)
+  m1<-t(Outer(x,y,"-"))
+  m2<-matrix(1,n1p,n2p)
+  flag<-(abs(m1)>=chk)
+  m3<-m2*flag
+  rm(m1,m2,flag)
+  xv<-c(1:n1)
+  yv<-c(1:n2)
+  xv1<-n1-xv+1
+  yv1<-n2-yv+1
+  dis1<-c(1,pbeta(phat,xv,xv1))
+  dis2<-c(1,pbeta(phat,yv,yv1))
+  pd1<-NA
+  pd2<-NA
+  for(i in 1:n1){pd1[i]<-dis1[i]-dis1[i+1]}
+  for(i in 1:n2){pd2[i]<-dis2[i]-dis2[i+1]}
+  pd1[n1p]<-phat^n1
+  pd2[n2p]<-phat^n2
+  m4<-t(Outer(pd1,pd2,"*"))
+  test<-sum(m3*m4)
+  rm(m3,m4)
+  list(p.value=test,p1=q,p2=p,est.dif=q-p)
+}
+```
+
+## Wrapper for Storer-Kim test [`PSGE.SK`]
+
+At each SNP, conduct a Storer-Kim binomial exact test of two proportions to 
+test whether there is a statistically significant difference in the proportion 
+of maternal vs paternal read counts
+
+```{r, eval=F}
+PSGE.SK <- function(counts,metadata,phenotype,cores){
+  pat.exp <- counts[,metadata[metadata$parent%in%c("D")&
+                                metadata$phenotype==phenotype,"sample.id"]]
+  mat.exp <- counts[,metadata[metadata$parent%in%c("Q")&
+                                metadata$phenotype==phenotype,"sample.id"]]
+  i.len=length(row.names(pat.exp))
+  return.df <- data.frame(matrix(ncol=2,nrow=0))
+  names(return.df) <- c("SNP_gene","p")
+  for(i in 1:i.len){
+    SNP_gene=row.names(pat.exp[i,])
+    p1.s=sum(pat.exp[i,])
+    p2.s=sum(mat.exp[i,])
+    p.o=sum(p1.s,p2.s)
+    test=twobinom(r1=p1.s,n1=p.o,r2=p2.s,n2=p.o)$p.value
+    return.df <- rbind(return.df, data.frame(SNP_gene=SNP_gene,p=test))
+  }
+  return(return.df)
+}
+```
+
+## General linear mixed effects model with interactions [`GLIMMIX`]
+
+For each transcript, fit a GLIMMIX model to determine whether there is 
+a statistically significant effect of parent, lineage, or their interaction 
+on read counts at all SNP positions across the transcript
+
+```{r, eval=F}
+PSGE.GLIMMIX <- function(counts,metadata,cores){
+  counts$SNP_gene <- row.names(counts)
+  counts$geneID <- as.character(unlist(map(strsplit(counts$SNP_gene, 
+                                                    split = ":"), 2)))
+  genelist <- unique(counts$geneID)
+  i.len <- length(genelist)
+  df.out <- data.frame(matrix(ncol=4,nrow=0))
+  names(df.out) <- c("ID","parent.p","cross.p","parentXcross.p")
+  for(i in 1:i.len){
+    counts.sub <- counts[counts$geneID==genelist[i],]
+    counts.sub$geneID <- NULL
+    counts.sub <- gather(counts.sub, sample.id, count, 
+                         names(counts.sub), -SNP_gene, factor_key=TRUE)
+    counts.sub <- join(counts.sub, metadata, by = "sample.id")
+    counts.sub$parent <- as.factor(str_sub(counts.sub$parent,-1,-1))
+    counts.sub$SNP_gene <- as.factor(counts.sub$SNP_gene)
+    counts.sub$lineage <- as.factor(counts.sub$lineage)
+    counts.sub$individual <- as.factor(counts.sub$individual)
+    testfail <- F
+    test <- "null"
+    if(length(unique(counts.sub$SNP_gene))==1){
+      tryCatchLog(test <- lmer(count~parent+lineage+parent*lineage+
+                                 (1|individual), data=counts.sub), 
+                  error = function(e) {testfail <- T})
+    }else{
+    tryCatchLog(test <- lmer(count~parent+lineage+parent*lineage+(1|SNP_gene)+
+                               (1|individual), data=counts.sub), 
+                error = function(e) {testfail <- T})}
+    if(class(test)=="character"){testfail <- T}
+    if(testfail==F){
+      test <- summary(test)
+      parent.p.list <- test[["coefficients"]][2,5]
+      cross.p.list <- test[["coefficients"]][3,5]
+      parent.cross.p.list <- test[["coefficients"]][4,5]
+    }else{
+      parent.p.list <- 1
+      cross.p.list <- 1
+      parent.cross.p.list <- 1
+    }
+    df.out <- rbind(df.out, data.frame(ID=genelist[i],
+                                       parent.p=parent.p.list,
+                                       cross.p=cross.p.list,
+                                       parentXcross.p=parent.cross.p.list))
+  }
+  return(df.out)
+}
+```
+
+# Conduct statistical tests
+
+## Conduct Storer-Kim test at each tx:SNP
+
+```{r, eval=F}
+sterile.SK <- PSGE.SK(sterile_counts,metadata,"sterile",2)
+write.csv(sterile.SK,"EHBxAHB_sterileSK.csv", row.names=F)
+
+reproductive.SK <- PSGE.SK(reproductive_counts,metadata,"reproductive",2)
+write.csv(reproductive.SK,"EHBxAHB_reproductiveSK.csv", row.names=F)
+```
+
+```{r, echo=F}
+sterile.SK <- read.csv("EHBxAHB_sterileSK.csv")
+reproductive.SK <- read.csv("EHBxAHB_reproductiveSK.csv")
+```
+
+## Conduct GLIMMIX test for each transcript
+
+```{r, eval=F}
+sterile.GLIMMIX <- PSGE.GLIMMIX(sterile_counts,metadata,2)
+write.csv(sterile.GLIMMIX,"EHBxAHB_sterileGLIMMIX.csv", row.names=F)
+
+reproductive.GLIMMIX <- PSGE.GLIMMIX(reproductive_counts,metadata,2)
+write.csv(reproductive.GLIMMIX,"EHBxAHB_reproductiveGLIMMIX.csv", row.names=F)
+```
+
+```{r, echo=F}
+sterile.GLIMMIX <- read.csv("EHBxAHB_sterileGLIMMIX.csv")
+reproductive.GLIMMIX <- read.csv("EHBxAHB_reproductiveGLIMMIX.csv")
+```
+
+# Assess test results for each gene [`PSGE.analysis`]
+1) Split count matrices by cross and parent of origin for plotting
+2) Set up a data.frame to plot %p1 and %p2 for each SNP
+3) Join results of Storer-Kim tests
+4) Prep GLIMMIX results for downstream analyses
+5) Correct for multiple testing
+6) For each gene, check whether all SNPs are biased in the same direction
+
+```{r, eval=F}
+PSGE.analysis <- function(counts,phenotype,metadata,SK,GLIMMIX){
+  # Split count matrices by cross and parent of origin for plotting
+  p1.pat <- counts[,metadata[metadata$parent%in%c("D")&
+                               metadata$lineage=="EHB"&
+                               metadata$phenotype==phenotype,"sample.id"]]
+  p1.mat <- counts[,metadata[metadata$parent%in%c("Q")&
+                               metadata$lineage=="EHB"&
+                               metadata$phenotype==phenotype,"sample.id"]]
+  p2.pat <- counts[,metadata[metadata$parent%in%c("D")&
+                               metadata$lineage=="AHB"&
+                               metadata$phenotype==phenotype,"sample.id"]]
+  p2.mat <- counts[,metadata[metadata$parent%in%c("Q")&
+                               metadata$lineage=="AHB"&
+                               metadata$phenotype==phenotype,"sample.id"]]
+  # Set up a data.frame to plot %p1 and %p2 for each SNP
+  p1.plot <- data.frame(rowSums(p1.pat)/(rowSums(p1.mat)+rowSums(p1.pat)))
+  names(p1.plot) <- c("p1")
+  p1.plot[is.nan(p1.plot$p1),"p1"] <- 0
+  p2.plot <- data.frame(rowSums(p2.mat)/(rowSums(p2.mat)+rowSums(p2.pat)))
+  names(p2.plot) <- c("p2")
+  p2.plot[is.nan(p2.plot$p2),"p2"] <- 0
+  plot <- cbind(p1.plot,p2.plot)
+  # Join results of Storer-Kim tests
+  plot <- plot[row.names(plot)%in%SK$SNP_gene,]
+  plot$SK.p <- SK$p
+  plot$SNP_gene <- row.names(plot)
+  plot$gene <- as.character(map(strsplit(plot$SNP_gene, split = ":"), 2))
+  # Prep GLIMMIX results for downstream analyses
+  GLIMMIX.biased <- data.frame(gene=GLIMMIX$ID,parent.p=GLIMMIX$parent.p,
+                               cross.p=GLIMMIX$cross.p,parentXcross.p=GLIMMIX$
+                                 parentXcross.p)
+  # Correct for multiple testing
+  plot$SK.padj <- p.adjust(plot$SK.p,"BH")
+  plot$bias <- "NA"
+  GLIMMIX$parent.padj <- p.adjust(GLIMMIX$parent.p,"BH")
+  GLIMMIX$cross.padj <- p.adjust(GLIMMIX$cross.p,"BH")
+  GLIMMIX$parentXcross.padj <- p.adjust(GLIMMIX$parentXcross.p,"BH")
+  GLIMMIX.biased <- GLIMMIX[GLIMMIX$parent.padj<0.05|GLIMMIX$cross.padj<0.05,1]
+  GLIMMIX.biased <- setdiff(GLIMMIX.biased,GLIMMIX[GLIMMIX$
+                                                     parentXcross.padj<0.05,1])
+  # For each gene, check whether all SNPs are biased in the same direction
+  for(i in 1:length(row.names(plot))){
+    p <- plot[i,"SK.padj"]
+    p1 <- plot[i,"p1"]
+    p2 <- plot[i,"p2"]
+    if(p<0.05&p1>0.6&p2<0.4){plot[i,"bias"] <- "pat"}
+    if(p<0.05&p1<0.4&p2>0.6){plot[i,"bias"] <- "mat"}
+    if(p<0.05&p1<0.4&p2<0.4){plot[i,"bias"] <- "EHB"}
+    if(p<0.05&p1>0.6&p2>0.6){plot[i,"bias"] <- "AHB"}
+  }
+  biaslist <- data.frame(matrix(ncol=2,nrow=0))
+  names(biaslist) <- c("gene","bias")
+  genelist <- unique(plot$gene)
+  for(i in 1:length(genelist)){
+    tmp <- unique(plot[plot$gene==genelist[i],"bias"])
+    if(length(tmp)>1){
+      if(length(tmp)==2){
+        if(any(tmp%in%"NA")){
+          bias <- tmp[!tmp%in%"NA"]
+        }else{bias <- "NA"}
+      }else{
+        bias <- "NA"
+      }
+    }else{bias <- tmp}
+    biaslist <- rbind(biaslist,data.frame(gene=genelist[[i]], bias=bias))
+  }
+  plot <- plot %>% left_join(biaslist, by = c('gene' = 'gene')) 
+  names(plot)[c(7:8)] <- c("xbias","bias")
+  plot$bias.plot <- "NA"
+  for(i in 1:length(row.names(plot))){
+    p1 <- plot$p1[i]
+    p2 <- plot$p2[i]
+    bias <- plot$bias[i]
+    if(!bias=="NA"){
+      if(bias=="pat"){if(p1>0.6&p2<0.4){plot[i,"bias.plot"]<- "pat"}}
+      if(bias=="mat"){if(p1<0.4&p2>0.6){plot[i,"bias.plot"] <- "mat"}}
+      if(bias=="EHB"){if(p1<0.4&p2<0.4){plot[i,"bias.plot"] <- "EHB"}}
+      if(bias=="AHB"){if(p1>0.6&p2>0.6){plot[i,"bias.plot"] <- "AHB"}}
+    }
+  }
+  plot[!plot$gene%in%GLIMMIX.biased,"bias.plot"] <- "NA" 
+  plot <- rbind(plot[plot$bias.plot%in%c("NA"),],
+                plot[plot$bias.plot%in%c("mat", "AHB", "EHB", "pat"),])
+  plot$bias.plot <- factor(plot$bias.plot,
+                           levels = c("NA","mat", "AHB", "EHB", "pat"))
+  return(plot)
+}
+```
+
+```{r,eval=F}
+sterile.plot <- PSGE.analysis(sterile_counts,"sterile",metadata,
+                                   sterile.SK,sterile.GLIMMIX)
+write.csv(sterile.plot,"EHBxAHB_sterile_PSGE.csv",row.names=F)
+
+reproductive.plot <- PSGE.analysis(reproductive_counts,"reproductive",metadata,
+                                 reproductive.SK,reproductive.GLIMMIX)
+write.csv(reproductive.plot,"EHBxAHB_reproductive_PSGE.csv",row.names=F)
+```
+
+# Plotting functions
+
+## Collapse SNPs to calculate p1 & p2 by transcript [`PSGE.collapse.avgExp`]
+
+```{r}
+# Plot average by transcript
+PSGE.collapse.avgExp <- function(data.plot,data.counts,metadata,phenotype){
+  data.counts$SNP_gene <- row.names(data.counts)
+  data <- data.plot %>% 
+      left_join(data.counts, by = c('SNP_gene' = 'SNP_gene')) 
+  genelist <- unique(data$gene)
+  p1.mean <- list()
+  p2.mean <- list()
+  biaslist <- list()
+  for(i in 1:length(genelist)){
+    tmp <- data[data$gene==genelist[i],]
+    if(!any(tmp$bias=="NA") & length(tmp[!tmp$bias.plot=="NA","p1"])>0){
+      tmp.sub <- tmp[!tmp$bias.plot=="NA",]
+       # Split count matrices by cross and parent of origin for plotting
+      p1.pat <- tmp.sub[,metadata[metadata$parent%in%c("D")&
+                                  metadata$lineage=="EHB"&
+                                  metadata$phenotype==phenotype,"sample.id"]]
+      p1.mat <- tmp.sub[,metadata[metadata$parent%in%c("Q")&
+                                 metadata$lineage=="EHB"&
+                                 metadata$phenotype==phenotype,"sample.id"]]
+      p2.pat <- tmp.sub[,metadata[metadata$parent%in%c("D")&
+                                  metadata$lineage=="AHB"&
+                                  metadata$phenotype==phenotype,"sample.id"]]
+      p2.mat <- tmp.sub[,metadata[metadata$parent%in%c("Q")&
+                                  metadata$lineage=="AHB"&
+                                  metadata$phenotype==phenotype,"sample.id"]]
+      p1.mean.x <- mean(sum(p1.pat)/(sum(p1.mat)+sum(p1.pat)))
+      if(is.nan(p1.mean.x)){p1.mean.x <- 0}
+      if(is.infinite(p1.mean.x)){p1.mean.x <- 1}
+      p1.mean[i] <- p1.mean.x
+      p2.mean.x <- mean(sum(p2.mat)/(sum(p2.mat)+sum(p2.pat)))
+      if(is.nan(p2.mean.x)){p2.mean.x <- 0}
+      if(is.infinite(p2.mean.x)){p2.mean.x <- 1}
+      p2.mean[i] <- p2.mean.x
+      biaslist[i] <- as.character(tmp.sub$bias.plot[1])
+    }else{
+      p1.mean[i] <- mean(tmp$p1)
+      p2.mean[i] <- mean(tmp$p2)
+      biaslist[i] <- "NA"}}
+  return.data <- data.frame(gene=unlist(genelist),
+                            bias.plot=unlist(biaslist),
+                            p1=unlist(p1.mean),
+                            p2=unlist(p2.mean))
+  return.data$bias.plot <- factor(return.data$bias.plot,
+                                  levels = c("NA","mat", "AHB", "EHB", "pat"))
+  return.data <- return.data[order(return.data$bias.plot),]
+  return(return.data)
+}
+```
+
+## PSGE plot by transcript [`PSGE.plot.tx`]
+
+```{r}
+PSGE.plot.tx <- function(data,title){
+  g <- ggplot(data, aes(x=p1, y=p2,
+                        color=bias.plot,alpha=0.5)) + 
+    geom_point(size=3) + theme_classic() +
+    xlab(expression(paste("% A allele in ",E[mother],
+                          " x ",A[father],sep=""))) +
+    ylab(expression(paste("% A allele in ",A[mother],
+                          " x ",E[father],sep=""))) +
+    ggtitle(title) +
+    theme(text = element_text(size=18),
+          plot.title = element_text(hjust = 0.5)) +
+    scale_color_manual(breaks = levels(data$bias.plot),
+                       values=c("grey90","#2da330","#897a79","#c59638",
+                                "#e83a37")) +
+    guides(alpha=F, color=F) +
+    scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, .2)) +
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, .2))
+  return(g)
+}
+```
+
+## Make center tri-plot [`triplot.plot`]
+
+```{r}
+triplot.plot <- function(sterile.plot,reproductive.plot,
+                         label.A,label.B,allgenes){
+  gmid.df <- data.frame(sterile=c(length(
+    unique(sterile.plot[sterile.plot$bias.plot=="mat","gene"])),
+    length(unique(sterile.plot[sterile.plot$bias.plot=="AHB","gene"])),
+    length(unique(sterile.plot[sterile.plot$bias.plot=="EHB","gene"])),
+    length(unique(sterile.plot[sterile.plot$bias.plot=="pat","gene"]))),
+    Bias=c("mat","AHB","EHB","pat"),
+    reproductive=c(length(unique(
+      reproductive.plot[reproductive.plot$
+                        bias.plot=="mat","gene"])),
+      length(unique(reproductive.plot[reproductive.plot$bias.plot=="AHB","gene"])),
+      length(unique(reproductive.plot[reproductive.plot$bias.plot=="EHB","gene"])),
+      length(unique(reproductive.plot[reproductive.plot$bias.plot=="pat","gene"]))))
+  
+  ## Test if # of sterile biased genes is different from reproductive biased genes
+  mat.test <- chisq.test(data.frame(Success=c(gmid.df[1,1],gmid.df[1,3]),
+                                    Failure=c(length(allgenes)-gmid.df[1,1],
+                                              length(allgenes)-gmid.df[1,3]),
+                                    row.names=c("sterile",
+                                                "reproductive")))$p.value
+  AHB.test <- chisq.test(data.frame(Success=c(gmid.df[2,1],gmid.df[2,3]),
+                                    Failure=c(length(allgenes)-gmid.df[2,1],
+                                              length(allgenes)-gmid.df[2,3]),
+                                    row.names=c("sterile",
+                                                "reproductive")))$p.value
+  EHB.test <- chisq.test(data.frame(Success=c(gmid.df[3,1],gmid.df[3,3]),
+                                    Failure=c(length(allgenes)-gmid.df[3,1],
+                                              length(allgenes)-gmid.df[3,3]),
+                                    row.names=c("sterile",
+                                                "reproductive")))$p.value
+  pat.test <- chisq.test(data.frame(Success=c(gmid.df[4,1],gmid.df[4,3]),
+                                    Failure=c(length(allgenes)-gmid.df[4,1],
+                                              length(allgenes)-gmid.df[4,3]),
+                                    row.names=c("sterile",
+                                                "reproductive")))$p.value
+  ## Build table
+  gmid.df$`.` <- c(mat.test,AHB.test,EHB.test,pat.test)
+  gmid.df <- gmid.df[,c(4,1,2,3)]
+  nsrows <- row.names(gmid.df[gmid.df$`.`>0.05,])
+  gmid.df$`.` <- formatC(gmid.df$`.`, format = "e", digits = 2)
+  gmid.df[nsrows,"."] <- "(ns)"
+  gmid.df <- gmid.df[,c(2,3,4,1)]
+  cols <- matrix("black", nrow(gmid.df), ncol(gmid.df))
+  cols[1,2] <- "#2da330"
+  cols[2,2] <- "#897a79"
+  cols[3,2] <- "#c59638"
+  cols[4,2] <- "#e83a37"
+          ccols <- matrix("white", nrow(gmid.df), ncol(gmid.df))
+          ccols[1,3] <- "#f4efea"
+            ccols[2,3] <- "#f4efea"
+              ccols[3,3] <- "#f4efea"
+                ccols[4,3] <- "#f4efea"
+                  ccols[1,1] <- "#f4efea"
+                    ccols[2,1] <- "#f4efea"
+                      ccols[3,1] <- "#f4efea"
+                        ccols[4,1] <- "#f4efea"
+                          ccols[1,2] <- "#e4d8d1"
+                            ccols[2,2] <- "#e4d8d1"
+                              ccols[3,2] <- "#e4d8d1"
+                                ccols[4,2] <- "#e4d8d1"
+                                  cfonts <- matrix("plain", nrow(gmid.df), ncol(gmid.df))
+                                  cfonts[1,2] <- "bold"
+                                  cfonts[2,2] <- "bold"
+                                  cfonts[3,2] <- "bold"
+                                  cfonts[4,2] <- "bold"
+                                  names(gmid.df) <- c(label.A,"Bias",label.B,".")
+                                  gmid.df[2,2] <- "AHB"
+                                  gmid.df[3,2] <- "EHB"
+                                  tt <- ttheme_default(core=list(fg_params = list(col = cols, 
+                                                                                  cex = 1,
+                                                                                  fontface = cfonts),
+                                                                 bg_params = list(col=NA,
+                                                                                  fill = ccols),
+                                                                 padding.h=unit(2, "mm")),
+                                                       rowhead=list(bg_params = list(col=NA)),
+                                                       colhead=list(bg_params = list(fill = c("#f4efea",
+                                                                                                       "#e4d8d1",
+                                                                                                       "#f4efea",
+                                                                                                       "white")),
+                                                                                                       fg_params = list(rot=90,
+                                                                                                                        cex = 1,
+                                                                                                                        col = c("black",
+                                                                                                                                       "black",
+                                                                                                                                       "black",
+                                                                                                                                       "white"))))
+                                                                                                                                       
+                                  gmid <- tableGrob(gmid.df, rows = NULL, theme=tt)
+                                  return(gmid)
+}
+```
+
+# Plot PSGE by transcript
+
+```{r, echo = F}
+sterile.plot <- read.csv("EHBxAHB_sterile_PSGE.csv")
+sterile.plot[is.na(sterile.plot$xbias),"xbias"] <- "NA"
+sterile.plot[is.na(sterile.plot$bias),"bias"] <- "NA"
+sterile.plot[is.na(sterile.plot$bias.plot),"bias.plot"] <- "NA"
+sterile.plot <- rbind(sterile.plot[sterile.plot$
+                                               bias.plot%in%c("NA"),],
+                           sterile.plot[sterile.plot$bias.plot%in%c(
+                             "mat", "AHB", "EHB", "pat"),])
+sterile.plot$bias.plot <- factor(sterile.plot$bias.plot,
+                                      levels = c("NA","mat", "AHB", "EHB", "pat"))
+```
+
+```{r, echo = F}
+reproductive.plot <- read.csv("EHBxAHB_reproductive_PSGE.csv")
+reproductive.plot[is.na(reproductive.plot$xbias),"xbias"] <- "NA"
+reproductive.plot[is.na(reproductive.plot$bias),"bias"] <- "NA"
+reproductive.plot[is.na(reproductive.plot$bias.plot),"bias.plot"] <- "NA"
+reproductive.plot <- rbind(reproductive.plot[reproductive.plot$bias.plot%in%c("NA"),],
+                         reproductive.plot[reproductive.plot$bias.plot%in%c(
+                           "mat", "AHB", "EHB", "pat"),])
+reproductive.plot$bias.plot <- factor(reproductive.plot$bias.plot,
+                                    levels = c("NA","mat", "AHB", "EHB", "pat"))
+```
+
+```{r}
+sterile.collapse <- PSGE.collapse.avgExp(sterile.plot,
+                                              sterile_counts,
+                                              metadata,"sterile")
+g1.avgExp <- PSGE.plot.tx(sterile.collapse,"sterile workers")
+g1.avgExp
+```
+
+```{r}
+reproductive.collapse <- PSGE.collapse.avgExp(reproductive.plot,reproductive_counts,
+                                            metadata,"reproductive")
+g2.avgExp <- PSGE.plot.tx(reproductive.collapse,"reproductive workers")
+g2.avgExp
+```
+
+```{r}
+allgenes <- unique(read.table("amel_OGSv3.2.txt",header=F)[,1])
+triplot.avgExp <- triplot.plot(sterile.collapse,reproductive.collapse,
+                               "sterile","reproductive",allgenes)
+plot(triplot.avgExp)
+```
+
+``` {echo="F"}
+fig1.avgExp <- arrangeGrob(g1.avgExp, triplot.avgExp, 
+                           g2.avgExp, widths=c(5,2.5,5))
+ggsave(file="EHBxAHB_avgExp.png", plot=fig1.avgExp, width=15, height=6)
+```
+
+```{r, echo=F, out.width="linewidth",fig.align="center"}
+knitr::include_graphics("EHBxAHB_avgExp.png")
+```
+
+# Session info
+
+```{r}
+sessionInfo()
+```
