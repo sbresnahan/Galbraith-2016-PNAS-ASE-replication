@@ -157,9 +157,8 @@ cd ${DIR_INDEX}
 wget -O Amel_HAv3.1.fna.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.fna.gz
 gunzip Amel_HAv3.1.fna.gz
 
-wget -O https://elsiklab-data.missouri.edu/data/hgd/gene_gff3/ogs/Apis_mellifera_amel_OGSv3.2_liftover_Amel_HAv3.1.gff3.gz
-gunzip Apis_mellifera_amel_OGSv3.2_liftover_Amel_HAv3.1.gff3.gz
-mv Apis_mellifera_amel_OGSv3.2_liftover_Amel_HAv3.1.gff3 Amel_HAv3.1_OGSv3.2.gff3
+wget -O Amel_HAv3.1.gff.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.gff.gz
+gunzip Amel_HAv3.1.gff.gz
 
 conda activate bwa
 
@@ -237,7 +236,7 @@ conda deactivate
 3) Integrate homozygous variants into Amel_HAv3.1 for each F0 library, separately [`gatk FastaAlternateReferenceMaker`].
 
 ```
-INDEX="${DIR_INDEX}/Amel_HAv3.1_OGSv3.2.gff3"
+INDEX="${DIR_INDEX}/Amel_HAv3.1.gff"
 
 conda activate gatk
 
@@ -529,9 +528,9 @@ bedtools intersect -u -a 875_888_aSet.bed -b 882_894_aSet.bed > consensus_aSet.b
 ## Generate BED file of variants intersecting genes
 
 ```
-awk '$3 == "gene" { print $0 }' Amel_HAv3.1_OGSv3.2.gff3 | sed 's/;//g' > Amel_HAv3.1_OGSv3.2_genes.gff3
+awk '$3 == "gene" { print $0 }' Amel_HAv3.1.gff | sed 's/;//g' > Amel_HAv3.1_genes.gff3
 
-bedtools intersect -wb -a Amel_HAv3.1_OGSv3.2_genes.gff3 -b ${DIR_VARIANTS}/consensus_aSet.bed \
+bedtools intersect -wb -a Amel_HAv3.1_genes.gff3 -b ${DIR_VARIANTS}/consensus_aSet.bed \
 | awk -v OFS="\t" '{print $10, $11, $12, $13 ":" $9, $6, $7}' \
 | grep -v '^NC_001566.1' | sort -k1,1V -k2,2n > ${DIR_VARIANTS}/SNPs_for_analysis.bed
 
