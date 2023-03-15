@@ -246,12 +246,12 @@ for i in "${SRA[@]}"
 do
    conda activate bcftools
    bcftools filter -e 'GT="het"' ${i}.vcf \
-   | bcftools filter -i 'TYPE="snp"' - > ${i}_typefilter_snp.vcf
-   bgzip -c ${i}_typefilter_snp.vcf > ${i}_typefilter_snp.vcf.gz
-   tabix -p vcf ${i}_typefilter_snp.vcf.gz
+   | bcftools filter -i 'TYPE="snp"' - > ${i}_het_snp.vcf
+   bgzip -c ${i}_het_snp.vcf > ${i}_het_snp.vcf.gz
+   tabix -p vcf ${i}_het_snp.vcf.gz
    conda deactivate
    conda activate gatk
-   gatk FastaAlternateReferenceMaker -R ${INDEX} -O ${DIR_ARG}/${i}.fasta -V ${i}_typefilter_snp.vcf.gz
+   gatk FastaAlternateReferenceMaker -R ${INDEX} -O ${DIR_ARG}/${i}.fasta -V ${i}_het_snp.vcf.gz
    conda deactivate
 done
 
@@ -444,31 +444,30 @@ cd ${DIR_VARIANTS}
 
 conda activate bedtools
 
+bedtools intersect -header -v -a SRR3037350_het_snp.vcf.gz \
+-b SRR3037351_het_snp.vcf.gz > SRR3037350_outer.vcf
 
-bedtools intersect -header -v -a SRR3037350_typefilter.vcf.gz \
--b SRR3037351_typefilter.vcf.gz > SRR3037350_outer.vcf
+bedtools intersect -header -v -a SRR3037351_het_snp.vcf.gz \
+-b SRR3037350_het_snp.vcf.gz > SRR3037351_outer.vcf
 
-bedtools intersect -header -v -a SRR3037351_typefilter.vcf.gz \
--b SRR3037350_typefilter.vcf.gz > SRR3037351_outer.vcf
+bedtools intersect -header -v -a SRR3037352_het_snp.vcf.gz \
+-b SRR3037353_het_snp.vcf.gz > SRR3037352_outer.vcf
 
-bedtools intersect -header -v -a SRR3037352_typefilter.vcf.gz \
--b SRR3037353_typefilter.vcf.gz > SRR3037352_outer.vcf
-
-bedtools intersect -header -v -a SRR3037353_typefilter.vcf.gz \
--b SRR3037352_typefilter.vcf.gz > SRR3037353_outer.vcf
+bedtools intersect -header -v -a SRR3037353_het_snp.vcf.gz \
+-b SRR3037352_het_snp.vcf.gz > SRR3037353_outer.vcf
 
 
-bedtools intersect -header -v -a SRR3037354_typefilter.vcf.gz \
--b SRR3037355_typefilter.vcf.gz > SRR3037354_outer.vcf
+bedtools intersect -header -v -a SRR3037354_het_snp.vcf.gz \
+-b SRR3037355_het_snp.vcf.gz > SRR3037354_outer.vcf
 
-bedtools intersect -header -v -a SRR3037355_typefilter.vcf.gz \
--b SRR3037354_typefilter.vcf.gz > SRR3037355_outer.vcf
+bedtools intersect -header -v -a SRR3037355_het_snp.vcf.gz \
+-b SRR3037354_het_snp.vcf.gz > SRR3037355_outer.vcf
 
-bedtools intersect -header -v -a SRR3037356_typefilter.vcf.gz \
--b SRR3037357_typefilter.vcf.gz > SRR3037356_outer.vcf
+bedtools intersect -header -v -a SRR3037356_het_snp.vcf.gz \
+-b SRR3037357_het_snp.vcf.gz > SRR3037356_outer.vcf
 
-bedtools intersect -header -v -a SRR3037357_typefilter.vcf.gz \
--b SRR3037356_typefilter.vcf.gz > SRR3037357_outer.vcf
+bedtools intersect -header -v -a SRR3037357_het_snp.vcf.gz \
+-b SRR3037356_het_snp.vcf.gz > SRR3037357_outer.vcf
 
 
 conda deactivate
