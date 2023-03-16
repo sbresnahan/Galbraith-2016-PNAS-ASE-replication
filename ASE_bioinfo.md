@@ -532,7 +532,10 @@ bedtools intersect -u -a 875_888_aSet.bed -b 882_894_aSet.bed > consensus_aSet.b
 ## Generate BED file of variants intersecting genes
 
 ```
-awk '$3 == "gene" { print $0 }' Amel_HAv3.1.gff | sed 's/;//g' > Amel_HAv3.1_genes.gff3
+awk '$3 == "gene" { print $0 }' Amel_HAv3.1.gff | awk -v OFS="\t" '{print $1, $2, $3, $4, $5, $6, $7, $8}' > Amel_HAv3.1_genes.txt
+awk '$3 == "gene" { print $0 }' Amel_HAv3.1.gff | awk '{print $9}' | grep -Po 'GeneID[^\s]*' \
+| cut -d':' -f2 | cut -d';' -f1 | cut -d',' -f1 | sed -e 's/^/LOC/' > Amel_HAv3.1_geneIDs.txt
+paste -d'\t' Amel_HAv3.1_genes.txt Amel_HAv3.1_geneIDs.txt > Amel_HAv3.1_genes.gff3
 
 bedtools intersect -wb -a Amel_HAv3.1_genes.gff3 -b ${DIR_VARIANTS}/consensus_aSet.bed \
 | awk -v OFS="\t" '{print $10, $11, $12, $13 ":" $9, $6, $7}' \
