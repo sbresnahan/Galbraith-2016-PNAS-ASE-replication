@@ -156,13 +156,14 @@ cd ${DIR_INDEX}
 
 wget -O Amel_HAv3.1.fna.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.fna.gz
 gunzip Amel_HAv3.1.fna.gz
+mv Amel_HAv3.1.fna Amel_HAv3.1.fasta
 
 wget -O Amel_HAv3.1.gff.gz https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/254/395/GCF_003254395.2_Amel_HAv3.1/GCF_003254395.2_Amel_HAv3.1_genomic.gff.gz
 gunzip Amel_HAv3.1.gff.gz
 
 conda activate bwa
 
-bwa index Amel_HAv3.1.fna
+bwa index Amel_HAv3.1.fasta
 
 conda deactivate
 ```
@@ -179,7 +180,7 @@ conda activate bwa
 
 for i in "${SRA[@]}"
 do
-  bwa mem -t 8 ${DIR_INDEX}/Amel_HAv3.1.fna ${i}_1.fastq ${i}_2.fastq > ${DIR_ALIGN}/${i}.sam
+  bwa mem -t 8 ${DIR_INDEX}/Amel_HAv3.1.fasta ${i}_1.fastq ${i}_2.fastq > ${DIR_ALIGN}/${i}.sam
 done
 
 conda deactivate
@@ -208,7 +209,7 @@ cd ${DIR_INDEX}
 
 conda activate samtools
 
-samtools faidx Amel_HAv3.1.fna
+samtools faidx Amel_HAv3.1.fasta
 
 conda deactivate
 
@@ -218,12 +219,12 @@ conda activate freebayes
 
 for i in "${DIPLOID[@]}"
 do
-  freebayes -f ${DIR_INDEX}/Amel_HAv3.1.fna ${i}.bam > ${DIR_VARIANTS}/${i}.vcf
+  freebayes -f ${DIR_INDEX}/Amel_HAv3.1.fasta ${i}.bam > ${DIR_VARIANTS}/${i}.vcf
 done
 
 for i in "${HAPLOID[@]}"
 do
-  freebayes -f ${DIR_INDEX}/Amel_HAv3.1.fna ${i}.bam -p 1 > ${DIR_VARIANTS}/${i}.vcf
+  freebayes -f ${DIR_INDEX}/Amel_HAv3.1.fasta ${i}.bam -p 1 > ${DIR_VARIANTS}/${i}.vcf
 done
 
 conda deactivate
@@ -236,9 +237,13 @@ conda deactivate
 3) Integrate homozygous variants into Amel_HAv3.1 for each F0 library, separately [`gatk FastaAlternateReferenceMaker`].
 
 ```
-INDEX="${DIR_INDEX}/Amel_HAv3.1.gff"
+INDEX="${DIR_INDEX}/Amel_HAv3.1.fasta"
+
+cd ${DIR_INDEX}
 
 conda activate gatk
+
+gatk CreateSequenceDictionary -R Amel_HAv3.1.fasta -O Amel_HAv3.1.dict
 
 cd ${DIR_VARIANTS}
 
@@ -260,7 +265,7 @@ conda deactivate
 cd ${DIR_ARG}
 
 grep ">" SRR3037350.fasta | sed 's/>//g' > bad_headers.txt
-grep ">" ${DIR_INDEX}/Amel_HAv3.1.fna | sed 's/\s.*$//' | sed 's/>//g' > good_headers.txt
+grep ">" ${DIR_INDEX}/Amel_HAv3.1.fasta | sed 's/\s.*$//' | sed 's/>//g' > good_headers.txt
 paste -d"\t" bad_headers.txt good_headers.txt > replace_headers.tsv
 
 for i in "${SRA[@]}"
@@ -365,10 +370,10 @@ l875Q=("SRR3033262" "SRR3033263" "SRR3033264" \
 
 for i in "${l875Q[@]}"
 do
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875Q_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875Q_${i} \
 ${DIR_ARG}/SRR3037350 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875D_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/875D_${i} \
 ${DIR_ARG}/SRR3037351 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -379,10 +384,10 @@ l888Q=("SRR3033268" "SRR3033269" "SRR3033270" \
 
 for i in "${l888Q[@]}"
 do
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888Q_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888Q_${i} \
 ${DIR_ARG}/SRR3037352 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888D_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/888D_${i} \
 ${DIR_ARG}/SRR3037353 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -393,10 +398,10 @@ l882Q=("SRR3033265" "SRR3033266" "SRR3033267" \
 
 for i in "${l882Q[@]}"
 do
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882Q_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882Q_${i} \
 ${DIR_ARG}/SRR3037354 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882D_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/882D_${i} \
 ${DIR_ARG}/SRR3037355 ${i}_1.fastq ${i}_2.fastq
 done
 
@@ -407,10 +412,10 @@ l894Q=("SRR3033271" "SRR3033272" "SRR3033273" \
 
 for i in "${l894Q[@]}"
 do
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894Q_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894Q_${i} \
 ${DIR_ARG}/SRR3037356 ${i}_1.fastq ${i}_2.fastq
 
-tophat2 -fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894D_${i} \
+tophat2 --library-type fr-firststrand --b2-very-sensitive -p 8 -o ${DIR_ALIGN}/894D_${i} \
 ${DIR_ARG}/SRR3037357 ${i}_1.fastq ${i}_2.fastq
 done
 
