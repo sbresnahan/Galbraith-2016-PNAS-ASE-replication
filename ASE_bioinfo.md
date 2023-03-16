@@ -110,8 +110,7 @@ DIR_ALIGN="/storage/home/stb5321/scratch/galbraith/aligned"
 DIR_VARIANTS="/storage/home/stb5321/scratch/galbraith/variants"
 DIR_ARG="/storage/home/stb5321/scratch/galbraith/parent_genomes"
 INDEX_GTF="/storage/home/stb5321/scratch/galbraith/index/Amel_HAv3.1.gtf"
-DIR_RNA="/storage/home/stb5321/scratch/galbraith/tophat2"
-DIR_RNA_SORT="/storage/home/stb5321/scratch/galbraith/tophat2_nomm_sort"
+DIR_SORT="/storage/home/stb5321/scratch/galbraith/tophat2_nomm_sort"
 DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/tophat2_counts"
 ```
 
@@ -555,32 +554,32 @@ sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > snps_for_analysis_sor
 for i in "${l875Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_RNA}/875Q_${i}/accepted_hits.bam \
--out ${DIR_RNA}/875Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_RNA}/875D_${i}/accepted_hits.bam \
--out ${DIR_RNA}/875D_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/875Q_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/875Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/875D_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/875D_${i}/nomm_hits.bam
 
 conda deactivate
 conda activate bedtools
 
-bedtools bamtobed -i ${DIR_RNA}/875Q_${i}/nomm_hits.bam \
-> ${DIR_RNA}/875Q_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/875Q_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/875Q_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/875Q_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/875Q_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/875Q_${i}/nomm_hits.bed \
+> ${DIR__SORT}/875Q_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/875Q_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/875Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/875Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/875D_${i}/nomm_hits.bam \
-> ${DIR_RNA}/875D_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/875D_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/875D_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/875D_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/875D_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/875D_${i}/nomm_hits.bed \
+> ${DIR_SORT}/875D_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/875D_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/875D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/875D_${i}.txt
 
 conda deactivate
@@ -590,32 +589,32 @@ done
 for i in "${l888Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_RNA}/888Q_${i}/accepted_hits.bam \
--out ${DIR_RNA}/888Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_RNA}/888D_${i}/accepted_hits.bam \
--out ${DIR_RNA}/888D_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/888Q_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/888Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/888D_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/888D_${i}/nomm_hits.bam
 
 conda deactivate
 conda activate bedtools
 
-bedtools bamtobed -i ${DIR_RNA}/888Q_${i}/nomm_hits.bam \
-> ${DIR_RNA}/888Q_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/888Q_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/888Q_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/888Q_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/888Q_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/888Q_${i}/nomm_hits.bed \
+> ${DIR_SORT}/888Q_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/888Q_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/888Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/888Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/888D_${i}/nomm_hits.bam \
-> ${DIR_RNA}/888D_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/888D_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/888D_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/888D_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/888D_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/888D_${i}/nomm_hits.bed \
+> ${DIR_SORT}/888D_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/888D_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/888D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/888D_${i}.txt
 
 conda deactivate
@@ -625,32 +624,32 @@ done
 for i in "${l882Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_RNA}/882Q_${i}/accepted_hits.bam \
--out ${DIR_RNA}/882Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_RNA}/882D_${i}/accepted_hits.bam \
--out ${DIR_RNA}/882D_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/882Q_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/882Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/882D_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/882D_${i}/nomm_hits.bam
 
 conda deactivate
 conda activate bedtools
 
-bedtools bamtobed -i ${DIR_RNA}/882Q_${i}/nomm_hits.bam \
-> ${DIR_RNA}/882Q_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/882Q_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/882Q_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/882Q_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/882Q_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/882Q_${i}/nomm_hits.bed \
+> ${DIR_SORT}/882Q_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/882Q_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/882Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/882Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/882D_${i}/nomm_hits.bam \
-> ${DIR_RNA}/882D_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/882D_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/882D_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/882D_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/882D_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/882D_${i}/nomm_hits.bed \
+> ${DIR_SORT}/882D_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/882D_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/882D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/882D_${i}.txt
 
 conda deactivate
@@ -660,32 +659,32 @@ done
 for i in "${l894Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_RNA}/894Q_${i}/accepted_hits.bam \
--out ${DIR_RNA}/894Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_RNA}/894D_${i}/accepted_hits.bam \
--out ${DIR_RNA}/894D_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/894Q_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/894Q_${i}/nomm_hits.bam
+bamtools filter -tag XM:0 -in ${DIR_ALIGN}/894D_${i}/accepted_hits.bam \
+-out ${DIR_ALIGN}/894D_${i}/nomm_hits.bam
 
 conda deactivate
 conda activate bedtools
 
-bedtools bamtobed -i ${DIR_RNA}/894Q_${i}/nomm_hits.bam \
-> ${DIR_RNA}/894Q_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/894Q_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/894Q_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/894Q_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/894Q_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/894Q_${i}/nomm_hits.bed \
+> ${DIR_SORT}/894Q_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/894Q_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/894Q_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/894Q_${i}.txt
 
-bedtools bamtobed -i ${DIR_RNA}/894D_${i}/nomm_hits.bam \
-> ${DIR_RNA}/894D_${i}/nomm_hits.bed
+bedtools bamtobed -i ${DIR_ALIGN}/894D_${i}/nomm_hits.bam \
+> ${DIR_ALIGN}/894D_${i}/nomm_hits.bed
 
-sort --parallel=10 -k1,1 -k2,2n ${DIR_RNA}/894D_${i}/nomm_hits.bed \
-> ${DIR_RNA_SORT}/894D_${i}_nomm_hits_sorted.bed
+sort --parallel=10 -k1,1 -k2,2n ${DIR_ALIGN}/894D_${i}/nomm_hits.bed \
+> ${DIR_SORT}/894D_${i}_nomm_hits_sorted.bed
 
 bedtools intersect -S -sorted -c -a ${DIR_VARIANTS}/snps_for_analysis_sorted.bed \
--b ${DIR_RNA_SORT}/894D_${i}_nomm_hits_sorted.bed \
+-b ${DIR_SORT}/894D_${i}_nomm_hits_sorted.bed \
 > ${DIR_COUNTS}/894D_${i}.txt
 
 conda deactivate
