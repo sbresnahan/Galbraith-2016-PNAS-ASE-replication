@@ -109,7 +109,6 @@ DIR_INDEX="/storage/home/stb5321/scratch/galbraith/index"
 DIR_ALIGN="/storage/home/stb5321/scratch/galbraith/aligned"
 DIR_VARIANTS="/storage/home/stb5321/scratch/galbraith/variants"
 DIR_ARG="/storage/home/stb5321/scratch/galbraith/parent_genomes"
-INDEX_GTF="/storage/home/stb5321/scratch/galbraith/index/Amel_HAv3.1.gtf"
 DIR_SORT="/storage/home/stb5321/scratch/galbraith/tophat2_nomm_sort"
 DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/tophat2_counts"
 ```
@@ -429,13 +428,6 @@ conda deactivate
 | ----- | ------- | ------- |
 |   A   |   875   |   888   |
 |   B   |   882   |   894   |
-
-## Define directory variables
-
-```
-DIR_RNA="/storage/home/stb5321/scratch/galbraith/STAR_variants"
-DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/counts"
-```
 
 ## Filter variants for analysis
 
