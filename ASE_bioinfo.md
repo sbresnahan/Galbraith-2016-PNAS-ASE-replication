@@ -546,9 +546,9 @@ sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > snps_for_analysis_sor
 for i in "${l875Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/875Q_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/875Q_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/875Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/875D_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/875D_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/875D_${i}/nomm_hits.bam
 
 conda deactivate
@@ -581,9 +581,9 @@ done
 for i in "${l888Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/888Q_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/888Q_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/888Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/888D_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/888D_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/888D_${i}/nomm_hits.bam
 
 conda deactivate
@@ -616,9 +616,9 @@ done
 for i in "${l882Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/882Q_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/882Q_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/882Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/882D_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/882D_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/882D_${i}/nomm_hits.bam
 
 conda deactivate
@@ -651,9 +651,9 @@ done
 for i in "${l894Q[@]}"
 do
 conda activate bamtools
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/894Q_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/894Q_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/894Q_${i}/nomm_hits.bam
-bamtools filter -tag XM:0 -in ${DIR_ALIGN}/894D_${i}/accepted_hits.bam \
+bamtools filter -tag XM:0 -isPrimaryAlignment -in ${DIR_ALIGN}/894D_${i}/accepted_hits.bam \
 -out ${DIR_ALIGN}/894D_${i}/nomm_hits.bam
 
 conda deactivate
