@@ -4,22 +4,22 @@ https://www.pnas.org/content/113/4/1020
 
 ## Overview of pipeline
 - [Requirements](#requirements)
-- [Process F0 DNA-seq libraries](#process-f0-dna-seq-libraries)
+- [Process F1 WGS libraries](#process-f1-dna-seq-libraries)
   * Sample metadata
   * Define directory variables
-  * Retrieve F0 DNA-seq libraries
-  * Trim adapters from F0 DNA-seq libraries
+  * Retrieve F1 WGS reads
+  * Trim adapters
   * Generate BWA alignment index for the Amel_HAv3.1 reference genome
-  * Align F0 DNA-seq libraries to Amel_HAv3.1
-  * Call F0 variants on Amel_HAv3.1
-  * Generate F0 reference genomes
-  * Create STAR indices for each F0 genome
-- [Process F1 RNA-seq libraries](#process-f1-rna-seq-libraries)
+  * Align to Amel_HAv3.1 reference genome
+  * Identify SNPs
+  * Generate F1 reference genomes
+  * Create tophat2 indices for each F1 reference genome
+- [Process F2 RNA-seq libraries](#process-f2-rna-seq-libraries)
   * Sample metadata
-  * Retrieve F1 RNA-seq libraries
-  * Trim adapters from F1 RNA-seq libraries
-  * Align F1 RNA-seq libraries to F0 genomes
-- [Count F1 reads over F0 variants](#count-f1-reads-over-f0-variants)
+  * Retrieve F2 RNA-seq reads
+  * Trim adapters
+  * Align to F1 genomes
+- [Count F1 reads over F1 SNPs](#count-f2-reads-over-f1-SNPs)
   * Define directory variables
   * Filter variants for analysis
   * Generate BED file of each SNP:gene
@@ -85,7 +85,7 @@ conda create --name bedtools
 conda install -c bioconda -n bedtools bedtools
 ```
 
-# Process F0 DNA-seq libraries
+# Process F1 WGS libraries
 
 ### Sample metadata
 
@@ -113,7 +113,7 @@ DIR_SORT="/storage/home/stb5321/scratch/galbraith/tophat2_nomm_sort"
 DIR_COUNTS="/storage/home/stb5321/scratch/galbraith/tophat2_counts"
 ```
 
-## Retrieve F0 DNA-seq libraries
+## Retrieve F1 WGS reads
 
 ```
 conda activate sra-tools
@@ -133,7 +133,7 @@ done
 conda deactivate
 ```
 
-## Trim adapters from F0 DNA-seq libraries
+## Trim adapters from F1 WGS reads
 
 ```
 conda activate fastp
@@ -166,7 +166,7 @@ bwa index Amel_HAv3.1.fasta
 conda deactivate
 ```
 
-## Align F0 DNA-seq libraries to Amel_HAv3.1
+## Align F1 WGS reads to Amel_HAv3.1
 
 1) Align [`bwa mem`].
 2) Convert SAM to sorted BAM [`samtools`].
@@ -195,7 +195,7 @@ done
 conda deactivate
 ```
 
-## Call F0 variants on Amel_HAv3.1
+## Identify F1 SNPs
 
 Using freebayes to account for differences in ploidy between `DIPLOID` and `HAPLOID` libraries.
 
@@ -228,7 +228,7 @@ done
 conda deactivate
 ```
 
-## Generate F0 reference genomes
+## Generate F1 reference genomes
 
 1) Remove heterozygous variants and indels [`bcftools filter`] from VCFs. NOTE: variants, MNPs, and complex variants are retained.
 2) Compress resultant VCFs and index [`bgzip`, `tabix`].  
@@ -273,7 +273,7 @@ replace_headers.tsv ${i}.fasta | sed 's/:.*//' > ${i}.fa
 done
 ```
 
-## Create tophat2 indices for each F0 genome
+## Create tophat2 indices for each F1 reference genome
 
 ```
 conda activate tophat2
@@ -286,7 +286,7 @@ done
 conda deactivate
 ```
 
-# Process F1 RNA-seq libraries
+# Process F2 RNA-seq reads
 
 ### Sample metadata
 
@@ -318,7 +318,7 @@ conda deactivate
 | SRR3033260 |  894  | Sterile      |
 | SRR3033261 |  894  | Sterile      |
 
-## Retrieve F1 RNA-seq libraries
+## Retrieve F2 RNA-seq reads
 
 ```
 conda activate sra-tools
@@ -341,7 +341,7 @@ done
 conda deactivate
 ```
 
-## Trim adapters from F1 RNA-seq libraries
+## Trim adapters from F2 RNA-seq reads
 
 ```
 conda activate fastp
@@ -355,7 +355,7 @@ done
 conda deactivate
 ```
 
-## Align F1 RNA-seq libraries to F0 genomes
+## Align F2 RNA-seq reads to F1 genomes
 
 Align [`tophat2`] F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) to respective F0 genomes and output coordinate-sorted BAM.
 
@@ -420,7 +420,7 @@ done
 conda deactivate
 ```
 
-# Count F1 reads over F0 variants
+# Count F2 reads over F1 SNPs
 
 ### Reciprocal cross colonies
 
@@ -537,7 +537,7 @@ conda deactivate
 
 ## Compute read coverage at each SNP:gene
 
-Count [`bedtools intersect`] strand-wise reads of F1 libraries (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F0 genomes at each SNP-gene, requiring 0 mismatches.
+Count [`bedtools intersect`] strand-wise reads of F2 reads (SRA accessions of lists `l875Q`, `l888Q`, `l882Q`, and `l894Q`) aligned to respective F1 genomes at each SNP-gene, requiring 0 mismatches.
 
 ```
 sort --parallel=8 -k1,1 -k2,2n variants_for_analysis.bed > snps_for_analysis_sorted.bed
